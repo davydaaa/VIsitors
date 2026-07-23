@@ -46,6 +46,38 @@
         }
         button:hover { opacity: 0.9; }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
+        
+        /* Стилі для фільтрів */
+        .filters {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .filters-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .cb-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
         .total-box {
             font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 16px;
         }
@@ -71,6 +103,20 @@
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
+
+        <div class="filters">
+            <div class="filters-title">Фільтр залів:</div>
+            <div class="checkbox-group">
+                <label class="cb-label"><input type="checkbox" id="filterAll" checked onchange="toggleAll()"> Усі зали</label>
+                <label class="cb-label"><input type="checkbox" value="1" class="hall-cb" disabled onchange="toggleSingle()"> Зал 1</label>
+                <label class="cb-label"><input type="checkbox" value="2" class="hall-cb" disabled onchange="toggleSingle()"> Зал 2</label>
+                <label class="cb-label"><input type="checkbox" value="3" class="hall-cb" disabled onchange="toggleSingle()"> Зал 3</label>
+                <label class="cb-label"><input type="checkbox" value="4" class="hall-cb" disabled onchange="toggleSingle()"> Зал 4</label>
+                <label class="cb-label"><input type="checkbox" value="5" class="hall-cb" disabled onchange="toggleSingle()"> Зал 5</label>
+                <label class="cb-label"><input type="checkbox" value="6" class="hall-cb" disabled onchange="toggleSingle()"> Зал 6</label>
+            </div>
+        </div>
+
         <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
     </div>
 
@@ -91,6 +137,23 @@
 <script>
     document.getElementById('datePicker').valueAsDate = new Date();
 
+    // Зберігаємо завантажені дані глобально, щоб миттєво фільтрувати без нових запитів
+    let globalData = null; 
+
+    function toggleAll() {
+        const isAll = document.getElementById('filterAll').checked;
+        const cbs = document.querySelectorAll('.hall-cb');
+        cbs.forEach(cb => {
+            cb.disabled = isAll;
+            if (isAll) cb.checked = false;
+        });
+        if (globalData) renderData();
+    }
+
+    function toggleSingle() {
+        if (globalData) renderData();
+    }
+
     async function fetchData() {
         const date = document.getElementById('datePicker').value;
         if (!date) return alert("Оберіть дату!");
@@ -98,27 +161,53 @@
         const btn = document.getElementById('fetchBtn');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
-        const chronologicalView = document.getElementById('chronologicalView');
-        const groupedView = document.getElementById('groupedView');
 
         btn.disabled = true;
         loading.style.display = 'block';
         results.style.display = 'none';
-        chronologicalView.innerHTML = '';
-        groupedView.innerHTML = '';
-
+        
         try {
             const response = await fetch(`/api/tickets?date=${date}`);
             const data = await response.json();
 
             if (data.error) throw new Error(data.error);
 
-            // Вивід загальної суми
-            document.getElementById('totalTickets').innerText = data.total;
+            globalData = data; 
+            renderData(); // Викликаємо функцію малювання екрану
+            
+            results.style.display = 'block';
+        } catch (error) {
+            alert("Помилка: " + error.message);
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    }
 
-            // 1. Рендер хронологічного списку
-            let chronoHtml = `<h2>Хронологічний розклад</h2>`;
-            data.chronological.forEach(s => {
+    // Функція, яка перевіряє, чи підходить зал під наші обрані чекбокси
+    function keepHall(hallName) {
+        const isAll = document.getElementById('filterAll').checked;
+        if (isAll) return true;
+
+        // Збираємо значення (цифри) з усіх обраних чекбоксів
+        const selectedNums = Array.from(document.querySelectorAll('.hall-cb:checked')).map(cb => cb.value);
+        if (selectedNums.length === 0) return false;
+
+        // Якщо назва залу (напр. "LUX 5") містить одну з обраних цифр — показуємо його
+        return selectedNums.some(num => hallName.includes(num));
+    }
+
+    function renderData() {
+        if (!globalData) return;
+        const data = globalData;
+
+        let filteredTotal = 0;
+        
+        // 1. Хронологічний розклад
+        let chronoHtml = `<h2>Хронологічний розклад</h2>`;
+        data.chronological.forEach(s => {
+            if (keepHall(s.hall)) {
+                filteredTotal += s.sold;
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
@@ -128,12 +217,13 @@
                         <div class="session-sold">${s.sold} шт.</div>
                     </div>
                 `;
-            });
-            chronologicalView.innerHTML = chronoHtml;
+            }
+        });
 
-            // 2. Рендер списку по залах
-            let groupedHtml = `<h2>Розклад по залах</h2>`;
-            for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
+        // 2. Розклад по залах
+        let groupedHtml = `<h2>Розклад по залах</h2>`;
+        for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
+            if (keepHall(hallName)) {
                 groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                 sessions.forEach(s => {
                     groupedHtml += `
@@ -145,15 +235,12 @@
                     `;
                 });
             }
-            groupedView.innerHTML = groupedHtml;
-
-            results.style.display = 'block';
-        } catch (error) {
-            alert("Помилка: " + error.message);
-        } finally {
-            btn.disabled = false;
-            loading.style.display = 'none';
         }
+
+        // Оновлюємо HTML
+        document.getElementById('totalTickets').innerText = filteredTotal;
+        document.getElementById('chronologicalView').innerHTML = chronoHtml;
+        document.getElementById('groupedView').innerHTML = groupedHtml;
     }
 </script>
 
