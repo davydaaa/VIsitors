@@ -36,6 +36,7 @@
         }
         h1 { margin-top: 0; font-size: 1.5rem; }
         h2 { font-size: 1.25rem; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
+        
         .controls {
             display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
         }
@@ -43,40 +44,55 @@
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
             outline: none; transition: border-color 0.2s;
         }
-        input[type="date"]:focus, select.mode-select:focus {
+        input[type="date"]:focus {
             border-color: var(--primary);
         }
-        
-        /* Стилі для нового перемикача режимів */
-        select.mode-select {
-            padding: 10px 14px; 
-            border: 1px solid var(--border); 
-            border-radius: 8px; 
-            font-size: 1rem;
-            outline: none; 
-            background: #fff; 
-            cursor: pointer;
-            transition: border-color 0.2s;
-            font-family: inherit;
-            color: var(--text);
-        }
-        
         button {
             padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s;
         }
         button:hover { background: var(--primary-hover); }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
         
+        /* Блок фільтрів під лінією */
         .filters {
             margin-top: 24px;
             padding-top: 20px;
             border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
+        
+        /* Новий стиль для перемикача часу (Segmented Control) */
+        .time-toggle {
+            display: inline-flex;
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 4px;
+            width: fit-content;
+        }
+        .time-toggle input { display: none; }
+        .time-toggle label {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .time-toggle input:checked + label {
+            background: var(--surface);
+            color: var(--text);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
         .filters-title {
             font-size: 0.9rem;
             font-weight: 600;
             color: var(--text-muted);
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -153,45 +169,55 @@
         <h1>Обрати дату</h1>
         <div class="controls">
             <input type="date" id="datePicker">
-            <!-- Нове меню вибору режиму часу -->
-            <select id="timeMode" class="mode-select">
-                <option value="now">Від поточного часу</option>
-                <option value="all">За весь день</option>
-            </select>
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
 
         <div class="filters">
-            <div class="filters-title">Фільтр залів:</div>
-            <div class="checkbox-group">
-                <label class="cb-label">
-                    <input type="checkbox" id="filterAll" checked onchange="onAllChange(event)">
-                    <span class="cb-button">Усі зали</span>
-                </label>
-                <label class="cb-label">
-                    <input type="checkbox" value="1" class="hall-cb" onchange="onHallChange()">
-                    <span class="cb-button">Зал 1</span>
-                </label>
-                <label class="cb-label">
-                    <input type="checkbox" value="2" class="hall-cb" onchange="onHallChange()">
-                    <span class="cb-button">Зал 2</span>
-                </label>
-                <label class="cb-label">
-                    <input type="checkbox" value="3" class="hall-cb" onchange="onHallChange()">
-                    <span class="cb-button">Зал 3</span>
-                </label>
-                <label class="cb-label">
-                    <input type="checkbox" value="4" class="hall-cb" onchange="onHallChange()">
-                    <span class="cb-button">Зал 4</span>
-                </label>
-                <label class="cb-label">
-                    <input type="checkbox" value="5" class="hall-cb" onchange="onHallChange()">
-                    <span class="cb-button">Зал 5</span>
-                </label>
-                <label class="cb-label">
-                    <input type="checkbox" value="6" class="hall-cb" onchange="onHallChange()">
-                    <span class="cb-button">Зал 6</span>
-                </label>
+            <!-- Фільтр часу відображення -->
+            <div>
+                <div class="filters-title">Відображення сеансів:</div>
+                <div class="time-toggle">
+                    <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="renderData()">
+                    <label for="timeNow">Від поточного часу</label>
+                    
+                    <input type="radio" id="timeAll" name="timeMode" value="all" onchange="renderData()">
+                    <label for="timeAll">За весь день</label>
+                </div>
+            </div>
+
+            <!-- Фільтр залів -->
+            <div>
+                <div class="filters-title">Фільтр залів:</div>
+                <div class="checkbox-group">
+                    <label class="cb-label">
+                        <input type="checkbox" id="filterAll" checked onchange="onAllChange(event)">
+                        <span class="cb-button">Усі зали</span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" value="1" class="hall-cb" onchange="onHallChange()">
+                        <span class="cb-button">Зал 1</span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" value="2" class="hall-cb" onchange="onHallChange()">
+                        <span class="cb-button">Зал 2</span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" value="3" class="hall-cb" onchange="onHallChange()">
+                        <span class="cb-button">Зал 3</span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" value="4" class="hall-cb" onchange="onHallChange()">
+                        <span class="cb-button">Зал 4</span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" value="5" class="hall-cb" onchange="onHallChange()">
+                        <span class="cb-button">Зал 5</span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" value="6" class="hall-cb" onchange="onHallChange()">
+                        <span class="cb-button">Зал 6</span>
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -248,8 +274,6 @@
 
     async function fetchData() {
         const date = document.getElementById('datePicker').value;
-        const mode = document.getElementById('timeMode').value; // Зчитуємо обраний режим
-        
         if (!date) return alert("Оберіть дату!");
 
         const btn = document.getElementById('fetchBtn');
@@ -261,8 +285,9 @@
         results.style.display = 'none';
         
         try {
-            // Передаємо параметр mode у запит
-            const response = await fetch(`/api/tickets?date=${date}&mode=${mode}`);
+            // Тепер ми ЗАВЖДИ просимо у сервера дані за весь день (mode=all), 
+            // щоб мати змогу миттєво фільтрувати їх у браузері
+            const response = await fetch(`/api/tickets?date=${date}&mode=all`);
             const data = await response.json();
 
             if (data.error) throw new Error(data.error);
@@ -293,11 +318,38 @@
         if (!globalData) return;
         const data = globalData;
 
+        // Зчитуємо обраний режим часу
+        const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
+        const selectedDate = document.getElementById('datePicker').value;
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
+        const isToday = (selectedDate === todayStr);
+
+        // Визначаємо поточний час (у хвилинах від початку доби), якщо потрібно фільтрувати
+        let currentMinutesTotal = 0;
+        if (isToday && timeMode === 'now') {
+            const now = new Date();
+            // Віднімаємо 30 хвилин запасу, як ми і домовлялися
+            now.setMinutes(now.getMinutes() - 30);
+            currentMinutesTotal = now.getHours() * 60 + now.getMinutes();
+        }
+
         let filteredTotal = 0;
         
+        // 1. Хронологічний розклад
         let chronoHtml = `<h2>Хронологічний розклад</h2>`;
         data.chronological.forEach(s => {
-            if (keepHall(s.hall)) {
+            let keepTime = true;
+            
+            // Якщо обрано "Від поточного часу" і сьогоднішня дата — відсікаємо минуле
+            if (isToday && timeMode === 'now') {
+                const [h, m] = s.time.split(':').map(Number);
+                const sessionMinutes = (h * 60) + m;
+                if (sessionMinutes < currentMinutesTotal) {
+                    keepTime = false;
+                }
+            }
+
+            if (keepHall(s.hall) && keepTime) {
                 filteredTotal += s.sold;
                 chronoHtml += `
                     <div class="session-item">
@@ -312,20 +364,41 @@
             }
         });
 
+        // 2. Розклад по залах
         let groupedHtml = `<h2>Розклад по залах</h2>`;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
-                groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
-                sessions.forEach(s => {
-                    groupedHtml += `
-                        <div class="session-item">
-                            <div class="session-time">${s.time}</div>
-                            <div class="session-name"><span>${s.movieName}</span></div>
-                            <div class="session-sold">${s.sold} шт.</div>
-                        </div>
-                    `;
+                
+                // Фільтруємо сеанси для конкретного залу
+                let validSessions = sessions.filter(s => {
+                    if (isToday && timeMode === 'now') {
+                        const [h, m] = s.time.split(':').map(Number);
+                        const sessionMinutes = (h * 60) + m;
+                        return sessionMinutes >= currentMinutesTotal;
+                    }
+                    return true;
                 });
+
+                // Малюємо зал тільки якщо в ньому залишились сеанси
+                if (validSessions.length > 0) {
+                    groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
+                    validSessions.forEach(s => {
+                        groupedHtml += `
+                            <div class="session-item">
+                                <div class="session-time">${s.time}</div>
+                                <div class="session-name"><span>${s.movieName}</span></div>
+                                <div class="session-sold">${s.sold} шт.</div>
+                            </div>
+                        `;
+                    });
+                }
             }
+        }
+
+        // Якщо всі сеанси закінчились, показуємо відповідне повідомлення
+        if (filteredTotal === 0 && data.chronological.length > 0) {
+            chronoHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
+            groupedHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
         }
 
         document.getElementById('totalTickets').innerText = filteredTotal;
