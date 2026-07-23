@@ -42,7 +42,20 @@ async function fetchGraphQL(url, query, variables) {
 }
 
 async function getTicketsReport(targetDate) {
-    const startTime = `${targetDate}T00:00:00.000Z`;
+    // Дізнаємося поточну дату за Києвом (у форматі YYYY-MM-DD)
+    const todayKyiv = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
+    
+    let startTime;
+    if (targetDate === todayKyiv) {
+        // Якщо обрано сьогодні — беремо поточний час мінус 30 хвилин (запас на рекламу)
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - 30);
+        startTime = now.toISOString();
+    } else {
+        // Якщо це інший день — беремо весь розклад від 00:00
+        startTime = `${targetDate}T00:00:00.000Z`;
+    }
+    
     const endTime = `${targetDate}T23:59:59.000Z`;
 
     const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
