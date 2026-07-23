@@ -43,16 +43,30 @@
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
             outline: none; transition: border-color 0.2s;
         }
-        input[type="date"]:focus {
+        input[type="date"]:focus, select.mode-select:focus {
             border-color: var(--primary);
         }
+        
+        /* Стилі для нового перемикача режимів */
+        select.mode-select {
+            padding: 10px 14px; 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            font-size: 1rem;
+            outline: none; 
+            background: #fff; 
+            cursor: pointer;
+            transition: border-color 0.2s;
+            font-family: inherit;
+            color: var(--text);
+        }
+        
         button {
             padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s;
         }
         button:hover { background: var(--primary-hover); }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
         
-        /* UI для фільтрів */
         .filters {
             margin-top: 24px;
             padding-top: 20px;
@@ -109,13 +123,12 @@
         .session-item:last-child { border-bottom: none; }
         .session-time { font-weight: bold; width: 50px; flex-shrink: 0; }
         
-        /* Оновлений блок з назвою та бейджем */
         .session-name { 
             flex-grow: 1; 
             padding: 0 12px; 
             display: flex; 
             align-items: center; 
-            gap: 10px; /* Відступ між бейджем та текстом */
+            gap: 10px; 
         }
         .session-hall { 
             background: #e9ecef;
@@ -140,6 +153,11 @@
         <h1>Обрати дату</h1>
         <div class="controls">
             <input type="date" id="datePicker">
+            <!-- Нове меню вибору режиму часу -->
+            <select id="timeMode" class="mode-select">
+                <option value="now">Від поточного часу</option>
+                <option value="all">За весь день</option>
+            </select>
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
 
@@ -230,6 +248,8 @@
 
     async function fetchData() {
         const date = document.getElementById('datePicker').value;
+        const mode = document.getElementById('timeMode').value; // Зчитуємо обраний режим
+        
         if (!date) return alert("Оберіть дату!");
 
         const btn = document.getElementById('fetchBtn');
@@ -241,7 +261,8 @@
         results.style.display = 'none';
         
         try {
-            const response = await fetch(`/api/tickets?date=${date}`);
+            // Передаємо параметр mode у запит
+            const response = await fetch(`/api/tickets?date=${date}&mode=${mode}`);
             const data = await response.json();
 
             if (data.error) throw new Error(data.error);
@@ -278,7 +299,6 @@
         data.chronological.forEach(s => {
             if (keepHall(s.hall)) {
                 filteredTotal += s.sold;
-                // Зверни увагу: прибрані квадратні дужки навколо s.hall
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
