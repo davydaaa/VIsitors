@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Звіт Планета Кіно</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --primary: #0d6efd;
+            --border: #dee2e6;
+            --radius: 12px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+        h1 { margin-top: 0; font-size: 1.5rem; }
+        h2 { font-size: 1.25rem; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
+        .controls {
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+        }
+        input[type="date"] {
+            padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
+        }
+        button {
+            padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: var(--text-muted); cursor: not-allowed; }
+        .total-box {
+            font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 16px;
+        }
+        .session-item {
+            display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border);
+        }
+        .session-item:last-child { border-bottom: none; }
+        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; }
+        .session-name { flex-grow: 1; padding: 0 12px; }
+        .session-hall { font-size: 0.85em; color: var(--text-muted); margin-right: 8px; }
+        .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; }
+        
+        #loading { display: none; margin-top: 16px; color: var(--text-muted); }
+        #results { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>Квитки: Планета Кіно</h1>
+        <div class="controls">
+            <input type="date" id="datePicker">
+            <button id="fetchBtn" onclick="fetchData()">Сформувати звіт</button>
+        </div>
+        <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
+    </div>
+
+    <div id="results">
+        <div class="card">
+            <h2>Підсумок дня</h2>
+            <div class="total-box">Загалом продано: <span id="totalTickets">0</span></div>
+        </div>
+
+        <!-- Додано контейнер для хронології -->
+        <div class="card" id="chronologicalView">
+        </div>
+
+        <div class="card" id="groupedView">
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('datePicker').valueAsDate = new Date();
+
+    async function fetchData() {
+        const date = document.getElementById('datePicker').value;
+        if (!date) return alert("Оберіть дату!");
+
+        const btn = document.getElementById('fetchBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const chronologicalView = document.getElementById('chronologicalView');
+        const groupedView = document.getElementById('groupedView');
+
+        btn.disabled = true;
+        loading.style.display = 'block';
+        results.style.display = 'none';
+        chronologicalView.innerHTML = '';
+        groupedView.innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/tickets?date=${date}`);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            // Вивід загальної суми
+            document.getElementById('totalTickets').innerText = data.total;
+
+            // 1. Рендер хронологічного списку
+            let chronoHtml = `<h2>Хронологічний розклад</h2>`;
+            data.chronological.forEach(s => {
+                chronoHtml += `
+                    <div class="session-item">
+                        <div class="session-time">${s.time}</div>
+                        <div class="session-name">
+                            <span class="session-hall">[${s.hall}]</span>${s.movieName}
+                        </div>
+                        <div class="session-sold">${s.sold} шт.</div>
+                    </div>
+                `;
+            });
+            chronologicalView.innerHTML = chronoHtml;
+
+            // 2. Рендер списку по залах
+            let groupedHtml = `<h2>Розклад по залах</h2>`;
+            for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
+                groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
+                sessions.forEach(s => {
+                    groupedHtml += `
+                        <div class="session-item">
+                            <div class="session-time">${s.time}</div>
+                            <div class="session-name">${s.movieName}</div>
+                            <div class="session-sold">${s.sold} шт.</div>
+                        </div>
+                    `;
+                });
+            }
+            groupedView.innerHTML = groupedHtml;
+
+            results.style.display = 'block';
+        } catch (error) {
+            alert("Помилка: " + error.message);
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
