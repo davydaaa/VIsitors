@@ -128,10 +128,14 @@
             box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
         }
 
+        /* Оновлені стилі для блоку з підсумком */
         .total-box {
-            font-size: 1.5rem; font-weight: bold; color: var(--primary);
-            transition: margin-top 0.2s ease;
+            font-size: 1.5rem; 
+            font-weight: bold; 
+            color: var(--primary);
+            /* Прибрали margin-top, оскільки зверху більше немає заголовка */
         }
+        
         .session-item {
             display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
         }
@@ -223,9 +227,11 @@
 
     <div id="results">
         <div class="card">
-            <!-- Додали ідентифікатори для динамічного приховування -->
-            <h2 id="summaryTitle">До кінця дня</h2>
-            <div class="total-box" id="summaryTotalBox" style="margin-top: 16px;">Загалом продано: <span id="totalTickets">0</span></div>
+            <!-- Заголовок h2 видалено, залишено лише один рядок із сумою -->
+            <div class="total-box">
+                <span id="totalLabel">До кінця дня продано:</span> 
+                <span id="totalTickets">0</span>
+            </div>
         </div>
 
         <div class="card" id="chronologicalView">
@@ -388,16 +394,12 @@
             groupedHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
         }
 
-        // Логіка перемикання заголовка
-        const summaryTitle = document.getElementById('summaryTitle');
-        const summaryTotalBox = document.getElementById('summaryTotalBox');
-        
-        if (timeMode === 'now') {
-            summaryTitle.style.display = 'block'; // Показуємо "До кінця дня"
-            summaryTotalBox.style.marginTop = '16px'; // Повертаємо відступ
+        // Динамічна зміна тексту замість перемикання заголовків
+        const totalLabel = document.getElementById('totalLabel');
+        if (timeMode === 'now' && isToday) {
+            totalLabel.innerText = 'До кінця дня продано:';
         } else {
-            summaryTitle.style.display = 'none'; // Ховаємо "До кінця дня"
-            summaryTotalBox.style.marginTop = '0'; // Забираємо відступ, щоб виглядало акуратно
+            totalLabel.innerText = 'Загалом продано:';
         }
 
         document.getElementById('totalTickets').innerText = filteredTotal;
