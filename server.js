@@ -41,18 +41,18 @@ async function fetchGraphQL(url, query, variables) {
     return response.json();
 }
 
-async function getTicketsReport(targetDate) {
+async function getTicketsReport(targetDate, mode) {
     // Дізнаємося поточну дату за Києвом (у форматі YYYY-MM-DD)
     const todayKyiv = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
     
     let startTime;
-    if (targetDate === todayKyiv) {
-        // Якщо обрано сьогодні — беремо поточний час мінус 30 хвилин (запас на рекламу)
+    if (mode === 'now' && targetDate === todayKyiv) {
+        // Якщо обрано "Від поточного часу" і це сьогодні — беремо поточний час мінус 30 хвилин (запас на рекламу)
         const now = new Date();
         now.setMinutes(now.getMinutes() - 30);
         startTime = now.toISOString();
     } else {
-        // Якщо це інший день — беремо весь розклад від 00:00
+        // Якщо це "За весь день" або інший день — беремо весь розклад від 00:00
         startTime = `${targetDate}T00:00:00.000Z`;
     }
     
@@ -99,19 +99,21 @@ async function getTicketsReport(targetDate) {
         groupedByHall[hallName].push(sessionData);
         
         totalSold += soldForSession;
-        await delay(300); // Зменшив затримку для швидшого відмальовування
+        await delay(300);
     }
 
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
-// Наш API ендпоінт
+// Наш API ендпоінт з підтримкою параметра mode
 app.get('/api/tickets', async (req, res) => {
     try {
         const date = req.query.date;
+        const mode = req.query.mode || 'now';
+        
         if (!date) return res.status(400).json({ error: "Вкажіть дату у форматі YYYY-MM-DD" });
         
-        const data = await getTicketsReport(date);
+        const data = await getTicketsReport(date, mode);
         res.json(data);
     } catch (error) {
         console.error(error);
