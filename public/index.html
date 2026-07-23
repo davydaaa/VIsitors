@@ -53,7 +53,6 @@
         button:hover { background: var(--primary-hover); }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
         
-        /* Блок фільтрів під лінією */
         .filters {
             margin-top: 24px;
             padding-top: 20px;
@@ -63,7 +62,6 @@
             gap: 20px;
         }
         
-        /* Новий стиль для перемикача часу (Segmented Control) */
         .time-toggle {
             display: inline-flex;
             background: #e9ecef;
@@ -131,7 +129,8 @@
         }
 
         .total-box {
-            font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 16px;
+            font-size: 1.5rem; font-weight: bold; color: var(--primary);
+            transition: margin-top 0.2s ease;
         }
         .session-item {
             display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
@@ -173,7 +172,6 @@
         </div>
 
         <div class="filters">
-            <!-- Фільтр часу відображення -->
             <div>
                 <div class="filters-title">Відображення сеансів:</div>
                 <div class="time-toggle">
@@ -185,7 +183,6 @@
                 </div>
             </div>
 
-            <!-- Фільтр залів -->
             <div>
                 <div class="filters-title">Фільтр залів:</div>
                 <div class="checkbox-group">
@@ -226,8 +223,9 @@
 
     <div id="results">
         <div class="card">
-            <h2>До кінця дня</h2>
-            <div class="total-box">Загалом продано: <span id="totalTickets">0</span></div>
+            <!-- Додали ідентифікатори для динамічного приховування -->
+            <h2 id="summaryTitle">До кінця дня</h2>
+            <div class="total-box" id="summaryTotalBox" style="margin-top: 16px;">Загалом продано: <span id="totalTickets">0</span></div>
         </div>
 
         <div class="card" id="chronologicalView">
@@ -285,8 +283,6 @@
         results.style.display = 'none';
         
         try {
-            // Тепер ми ЗАВЖДИ просимо у сервера дані за весь день (mode=all), 
-            // щоб мати змогу миттєво фільтрувати їх у браузері
             const response = await fetch(`/api/tickets?date=${date}&mode=all`);
             const data = await response.json();
 
@@ -318,29 +314,24 @@
         if (!globalData) return;
         const data = globalData;
 
-        // Зчитуємо обраний режим часу
         const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
         const selectedDate = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
         const isToday = (selectedDate === todayStr);
 
-        // Визначаємо поточний час (у хвилинах від початку доби), якщо потрібно фільтрувати
         let currentMinutesTotal = 0;
         if (isToday && timeMode === 'now') {
             const now = new Date();
-            // Віднімаємо 30 хвилин запасу, як ми і домовлялися
             now.setMinutes(now.getMinutes() - 30);
             currentMinutesTotal = now.getHours() * 60 + now.getMinutes();
         }
 
         let filteredTotal = 0;
         
-        // 1. Хронологічний розклад
         let chronoHtml = `<h2>Хронологічний розклад</h2>`;
         data.chronological.forEach(s => {
             let keepTime = true;
             
-            // Якщо обрано "Від поточного часу" і сьогоднішня дата — відсікаємо минуле
             if (isToday && timeMode === 'now') {
                 const [h, m] = s.time.split(':').map(Number);
                 const sessionMinutes = (h * 60) + m;
@@ -364,12 +355,10 @@
             }
         });
 
-        // 2. Розклад по залах
         let groupedHtml = `<h2>Розклад по залах</h2>`;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
                 
-                // Фільтруємо сеанси для конкретного залу
                 let validSessions = sessions.filter(s => {
                     if (isToday && timeMode === 'now') {
                         const [h, m] = s.time.split(':').map(Number);
@@ -379,7 +368,6 @@
                     return true;
                 });
 
-                // Малюємо зал тільки якщо в ньому залишились сеанси
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
@@ -395,10 +383,21 @@
             }
         }
 
-        // Якщо всі сеанси закінчились, показуємо відповідне повідомлення
         if (filteredTotal === 0 && data.chronological.length > 0) {
             chronoHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
             groupedHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
+        }
+
+        // Логіка перемикання заголовка
+        const summaryTitle = document.getElementById('summaryTitle');
+        const summaryTotalBox = document.getElementById('summaryTotalBox');
+        
+        if (timeMode === 'now') {
+            summaryTitle.style.display = 'block'; // Показуємо "До кінця дня"
+            summaryTotalBox.style.marginTop = '16px'; // Повертаємо відступ
+        } else {
+            summaryTitle.style.display = 'none'; // Ховаємо "До кінця дня"
+            summaryTotalBox.style.marginTop = '0'; // Забираємо відступ, щоб виглядало акуратно
         }
 
         document.getElementById('totalTickets').innerText = filteredTotal;
