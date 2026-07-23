@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Звіт Планета Кіно</title>
+    <title>Продані квитки RELUX</title>
     <style>
         :root {
             --bg: #f8f9fa;
@@ -66,21 +66,20 @@
 
 <div class="container">
     <div class="card">
-        <h1>Квитки: Планета Кіно</h1>
+        <h1>Обрати дату</h1>
         <div class="controls">
             <input type="date" id="datePicker">
-            <button id="fetchBtn" onclick="fetchData()">Сформувати звіт</button>
+            <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
         <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
     </div>
 
     <div id="results">
         <div class="card">
-            <h2>Підсумок дня</h2>
+            <h2>До кінця дня</h2>
             <div class="total-box">Загалом продано: <span id="totalTickets">0</span></div>
         </div>
 
-        <!-- Додано контейнер для хронології -->
         <div class="card" id="chronologicalView">
         </div>
 
