@@ -52,7 +52,7 @@
         button:hover { background: var(--primary-hover); }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
         
-        /* Оновлений UI для фільтрів */
+        /* UI для фільтрів */
         .filters {
             margin-top: 24px;
             padding-top: 20px;
@@ -75,11 +75,7 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
-        /* Ховаємо стандартний системний чекбокс */
-        .cb-label input {
-            display: none; 
-        }
-        /* Малюємо гарний чіп */
+        .cb-label input { display: none; }
         .cb-button {
             display: inline-block;
             padding: 8px 16px;
@@ -92,13 +88,11 @@
             transition: all 0.2s ease-in-out;
             user-select: none;
         }
-        /* Стан при наведенні */
         .cb-label:hover input:not(:checked) + .cb-button {
             border-color: #adb5bd;
             color: var(--text);
             background: var(--bg);
         }
-        /* Активний стан (обрано) */
         .cb-label input:checked + .cb-button {
             background: var(--primary);
             color: white;
@@ -110,12 +104,29 @@
             font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 16px;
         }
         .session-item {
-            display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
         }
         .session-item:last-child { border-bottom: none; }
-        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; }
-        .session-name { flex-grow: 1; padding: 0 12px; }
-        .session-hall { font-size: 0.85em; color: var(--text-muted); margin-right: 8px; }
+        .session-time { font-weight: bold; width: 50px; flex-shrink: 0; }
+        
+        /* Оновлений блок з назвою та бейджем */
+        .session-name { 
+            flex-grow: 1; 
+            padding: 0 12px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; /* Відступ між бейджем та текстом */
+        }
+        .session-hall { 
+            background: #e9ecef;
+            color: #495057;
+            font-size: 0.75rem; 
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+        }
         .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; }
         
         #loading { display: none; margin-top: 16px; color: var(--text-muted); }
@@ -187,16 +198,13 @@
     document.getElementById('datePicker').valueAsDate = new Date();
     let globalData = null; 
 
-    // Логіка кліку по кнопці "Усі зали"
     function onAllChange(e) {
         const allCb = e.target;
         const hallCbs = document.querySelectorAll('.hall-cb');
         
         if (allCb.checked) {
-            // Якщо увімкнули "Усі", вимикаємо всі індивідуальні
             hallCbs.forEach(cb => cb.checked = false);
         } else {
-            // Забороняємо вимикати "Усі", якщо жоден інший зал не обрано
             const anyChecked = Array.from(hallCbs).some(cb => cb.checked);
             if (!anyChecked) {
                 allCb.checked = true;
@@ -205,7 +213,6 @@
         if (globalData) renderData();
     }
 
-    // Логіка кліку по конкретному залу (1-6)
     function onHallChange() {
         const allCb = document.getElementById('filterAll');
         const hallCbs = document.querySelectorAll('.hall-cb');
@@ -213,10 +220,8 @@
         const anyChecked = Array.from(hallCbs).some(cb => cb.checked);
         
         if (anyChecked) {
-            // Якщо хоч один зал обрано, автоматично вимикаємо "Усі зали"
             allCb.checked = false;
         } else {
-            // Якщо зняли галочки з усіх залів, автоматично вмикаємо "Усі зали"
             allCb.checked = true;
         }
         
@@ -269,16 +274,17 @@
 
         let filteredTotal = 0;
         
-        // 1. Хронологічний розклад
         let chronoHtml = `<h2>Хронологічний розклад</h2>`;
         data.chronological.forEach(s => {
             if (keepHall(s.hall)) {
                 filteredTotal += s.sold;
+                // Зверни увагу: прибрані квадратні дужки навколо s.hall
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
                         <div class="session-name">
-                            <span class="session-hall">[${s.hall}]</span>${s.movieName}
+                            <span class="session-hall">${s.hall}</span>
+                            <span>${s.movieName}</span>
                         </div>
                         <div class="session-sold">${s.sold} шт.</div>
                     </div>
@@ -286,7 +292,6 @@
             }
         });
 
-        // 2. Розклад по залах
         let groupedHtml = `<h2>Розклад по залах</h2>`;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
@@ -295,7 +300,7 @@
                     groupedHtml += `
                         <div class="session-item">
                             <div class="session-time">${s.time}</div>
-                            <div class="session-name">${s.movieName}</div>
+                            <div class="session-name"><span>${s.movieName}</span></div>
                             <div class="session-sold">${s.sold} шт.</div>
                         </div>
                     `;
