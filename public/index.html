@@ -11,6 +11,7 @@
             --text: #212529;
             --text-muted: #6c757d;
             --primary: #0d6efd;
+            --primary-hover: #0b5ed7;
             --border: #dee2e6;
             --radius: 12px;
         }
@@ -40,17 +41,21 @@
         }
         input[type="date"] {
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
+            outline: none; transition: border-color 0.2s;
+        }
+        input[type="date"]:focus {
+            border-color: var(--primary);
         }
         button {
-            padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: opacity 0.2s;
+            padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s;
         }
-        button:hover { opacity: 0.9; }
+        button:hover { background: var(--primary-hover); }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
         
-        /* Стилі для фільтрів */
+        /* Оновлений UI для фільтрів */
         .filters {
-            margin-top: 20px;
-            padding-top: 16px;
+            margin-top: 24px;
+            padding-top: 20px;
             border-top: 1px solid var(--border);
         }
         .filters-title {
@@ -58,24 +63,47 @@
             font-weight: 600;
             color: var(--text-muted);
             margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .checkbox-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
         }
         .cb-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.95rem;
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Ховаємо стандартний системний чекбокс */
+        .cb-label input {
+            display: none; 
+        }
+        /* Малюємо гарний чіп */
+        .cb-button {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            transition: all 0.2s ease-in-out;
             user-select: none;
         }
-        input[type="checkbox"] {
-            cursor: pointer;
-            width: 16px;
-            height: 16px;
+        /* Стан при наведенні */
+        .cb-label:hover input:not(:checked) + .cb-button {
+            border-color: #adb5bd;
+            color: var(--text);
+            background: var(--bg);
+        }
+        /* Активний стан (обрано) */
+        .cb-label input:checked + .cb-button {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
         }
 
         .total-box {
@@ -107,13 +135,34 @@
         <div class="filters">
             <div class="filters-title">Фільтр залів:</div>
             <div class="checkbox-group">
-                <label class="cb-label"><input type="checkbox" id="filterAll" checked onchange="toggleAll()"> Усі зали</label>
-                <label class="cb-label"><input type="checkbox" value="1" class="hall-cb" disabled onchange="toggleSingle()"> Зал 1</label>
-                <label class="cb-label"><input type="checkbox" value="2" class="hall-cb" disabled onchange="toggleSingle()"> Зал 2</label>
-                <label class="cb-label"><input type="checkbox" value="3" class="hall-cb" disabled onchange="toggleSingle()"> Зал 3</label>
-                <label class="cb-label"><input type="checkbox" value="4" class="hall-cb" disabled onchange="toggleSingle()"> Зал 4</label>
-                <label class="cb-label"><input type="checkbox" value="5" class="hall-cb" disabled onchange="toggleSingle()"> Зал 5</label>
-                <label class="cb-label"><input type="checkbox" value="6" class="hall-cb" disabled onchange="toggleSingle()"> Зал 6</label>
+                <label class="cb-label">
+                    <input type="checkbox" id="filterAll" checked onchange="onAllChange(event)">
+                    <span class="cb-button">Усі зали</span>
+                </label>
+                <label class="cb-label">
+                    <input type="checkbox" value="1" class="hall-cb" onchange="onHallChange()">
+                    <span class="cb-button">Зал 1</span>
+                </label>
+                <label class="cb-label">
+                    <input type="checkbox" value="2" class="hall-cb" onchange="onHallChange()">
+                    <span class="cb-button">Зал 2</span>
+                </label>
+                <label class="cb-label">
+                    <input type="checkbox" value="3" class="hall-cb" onchange="onHallChange()">
+                    <span class="cb-button">Зал 3</span>
+                </label>
+                <label class="cb-label">
+                    <input type="checkbox" value="4" class="hall-cb" onchange="onHallChange()">
+                    <span class="cb-button">Зал 4</span>
+                </label>
+                <label class="cb-label">
+                    <input type="checkbox" value="5" class="hall-cb" onchange="onHallChange()">
+                    <span class="cb-button">Зал 5</span>
+                </label>
+                <label class="cb-label">
+                    <input type="checkbox" value="6" class="hall-cb" onchange="onHallChange()">
+                    <span class="cb-button">Зал 6</span>
+                </label>
             </div>
         </div>
 
@@ -136,21 +185,41 @@
 
 <script>
     document.getElementById('datePicker').valueAsDate = new Date();
-
-    // Зберігаємо завантажені дані глобально, щоб миттєво фільтрувати без нових запитів
     let globalData = null; 
 
-    function toggleAll() {
-        const isAll = document.getElementById('filterAll').checked;
-        const cbs = document.querySelectorAll('.hall-cb');
-        cbs.forEach(cb => {
-            cb.disabled = isAll;
-            if (isAll) cb.checked = false;
-        });
+    // Логіка кліку по кнопці "Усі зали"
+    function onAllChange(e) {
+        const allCb = e.target;
+        const hallCbs = document.querySelectorAll('.hall-cb');
+        
+        if (allCb.checked) {
+            // Якщо увімкнули "Усі", вимикаємо всі індивідуальні
+            hallCbs.forEach(cb => cb.checked = false);
+        } else {
+            // Забороняємо вимикати "Усі", якщо жоден інший зал не обрано
+            const anyChecked = Array.from(hallCbs).some(cb => cb.checked);
+            if (!anyChecked) {
+                allCb.checked = true;
+            }
+        }
         if (globalData) renderData();
     }
 
-    function toggleSingle() {
+    // Логіка кліку по конкретному залу (1-6)
+    function onHallChange() {
+        const allCb = document.getElementById('filterAll');
+        const hallCbs = document.querySelectorAll('.hall-cb');
+        
+        const anyChecked = Array.from(hallCbs).some(cb => cb.checked);
+        
+        if (anyChecked) {
+            // Якщо хоч один зал обрано, автоматично вимикаємо "Усі зали"
+            allCb.checked = false;
+        } else {
+            // Якщо зняли галочки з усіх залів, автоматично вмикаємо "Усі зали"
+            allCb.checked = true;
+        }
+        
         if (globalData) renderData();
     }
 
@@ -173,7 +242,7 @@
             if (data.error) throw new Error(data.error);
 
             globalData = data; 
-            renderData(); // Викликаємо функцію малювання екрану
+            renderData(); 
             
             results.style.display = 'block';
         } catch (error) {
@@ -184,16 +253,13 @@
         }
     }
 
-    // Функція, яка перевіряє, чи підходить зал під наші обрані чекбокси
     function keepHall(hallName) {
         const isAll = document.getElementById('filterAll').checked;
         if (isAll) return true;
 
-        // Збираємо значення (цифри) з усіх обраних чекбоксів
         const selectedNums = Array.from(document.querySelectorAll('.hall-cb:checked')).map(cb => cb.value);
         if (selectedNums.length === 0) return false;
 
-        // Якщо назва залу (напр. "LUX 5") містить одну з обраних цифр — показуємо його
         return selectedNums.some(num => hallName.includes(num));
     }
 
@@ -237,7 +303,6 @@
             }
         }
 
-        // Оновлюємо HTML
         document.getElementById('totalTickets').innerText = filteredTotal;
         document.getElementById('chronologicalView').innerHTML = chronoHtml;
         document.getElementById('groupedView').innerHTML = groupedHtml;
