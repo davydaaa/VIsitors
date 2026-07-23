@@ -56,7 +56,7 @@ async function getTicketsReport(targetDate) {
                 allSessions.push({
                     id: session.id,
                     movieName: movie.name,
-                    time: new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })
+                    time: new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' })
                 });
             });
         }
