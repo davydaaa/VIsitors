@@ -134,7 +134,6 @@
             color: var(--primary);
         }
         
-        /* Виправлене вирівнювання для шапки хронологічного списку */
         .section-header {
             display: flex;
             justify-content: space-between;
@@ -144,11 +143,11 @@
             margin-bottom: 16px;
         }
         .section-header h2 {
-            margin-top: 0; /* Обнулення стандартного відступу браузера */
+            margin-top: 0; 
             border-bottom: none;
             margin-bottom: 0;
             padding-bottom: 0;
-            line-height: 1; /* Рівна лінійна висота для ідеального центрування */
+            line-height: 1; 
         }
         
         .toggle-empty {
@@ -187,7 +186,10 @@
             display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
         }
         .session-item:last-child { border-bottom: none; }
-        .session-time { font-weight: bold; width: 50px; flex-shrink: 0; }
+        
+        /* Трохи розширили блок часу, щоб вмістити два рядки */
+        .session-time { font-weight: bold; width: 55px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
         
         .session-name { 
             flex-grow: 1; 
@@ -299,6 +301,30 @@
 </div>
 
 <script>
+    // =========================================================================
+    // МІНІ-АДМІНКА: Вкажи тут тривалість фільмів у хвилинах 
+    // (з урахуванням часу на титри та прибирання залу)
+    // =========================================================================
+    const MOVIE_DURATIONS = {
+        "ОДІССЕЯ": 120,
+        "АКАДЕМІЯ ЧАРІВНИКІВ": 105,
+        "ІСТОРІЯ ІГРАШОК 5": 100,
+        "ПОСІПАКИ І МОНСТРЯКИ": 95,
+        "ТЕСТ НА ТЕЩУ 2": 110,
+        "БРУДНІ ГРОШІ": 130
+    };
+    const DEFAULT_DURATION = 120; // Якщо фільму немає в списку, ставимо 2 години за замовчуванням
+
+    // Функція розрахунку часу закінчення
+    function getEndTime(startTime, movieName) {
+        const duration = MOVIE_DURATIONS[movieName] || DEFAULT_DURATION;
+        const [h, m] = startTime.split(':').map(Number);
+        const date = new Date();
+        date.setHours(h, m + duration, 0, 0);
+        return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    }
+    // =========================================================================
+
     document.getElementById('datePicker').valueAsDate = new Date();
     let globalData = null; 
 
@@ -439,9 +465,15 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
+                        // Вираховуємо час закінчення
+                        const endTime = getEndTime(s.time, s.movieName);
+                        
                         groupedHtml += `
                             <div class="session-item">
-                                <div class="session-time">${s.time}</div>
+                                <div class="session-time">
+                                    <span>${s.time}</span>
+                                    <span class="session-time-end">до ${endTime}</span>
+                                </div>
                                 <div class="session-name"><span>${s.movieName}</span></div>
                                 <div class="session-sold">${s.sold} шт.</div>
                             </div>
