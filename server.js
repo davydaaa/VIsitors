@@ -4,7 +4,7 @@ const path = require('path');
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // Дозволяємо серверу приймати JSON
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
@@ -41,10 +41,6 @@ async function fetchGraphQL(url, query, variables) {
     return response.json();
 }
 
-// ==========================================================
-// ГЛОБАЛЬНА ПАМ'ЯТЬ СЕРВЕРА
-// Зберігає всі сеанси, які сервер коли-небудь бачив за день
-// ==========================================================
 const serverSessionCache = {};
 
 async function getTicketsReport(targetDate, clientCachedSessions) {
@@ -55,36 +51,41 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         cinemaId: CINEMA_ID, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    // Ініціалізуємо пам'ять для конкретної дати
     if (!serverSessionCache[targetDate]) {
         serverSessionCache[targetDate] = new Map();
     }
     const sessionMap = serverSessionCache[targetDate];
 
-    // 1. НАВЧАННЯ ВІД КЛІЄНТА: Якщо сервер перезавантажився, він відновить пам'ять з браузера
+    // Очищаємо статус "свіжості" перед новим парсингом
+    for (let session of sessionMap.values()) {
+        session.isFresh = false;
+    }
+
+    // 1. Відновлюємо пам'ять з клієнта (якщо сервер перезапускався)
     if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
         clientCachedSessions.forEach(cs => {
             if (!sessionMap.has(cs.id)) {
-                sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall });
+                sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall, isFresh: false });
             }
         });
     }
 
-    // 2. СВІЖІ ДАНІ З API: Додаємо сеанси, які віддає Планета Кіно просто зараз
+    // 2. Свіжі дані від API (ті, що сайт віддає прямо зараз)
     if (scheduleResult.data?.fullMovies?.nodes) {
         scheduleResult.data.fullMovies.nodes.forEach(movie => {
             if (movie.offlineRental?.sessions) {
                 movie.offlineRental.sessions.forEach(session => {
                     const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
-                    if (!sessionMap.has(session.id)) {
-                        sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time });
+                    if (sessionMap.has(session.id)) {
+                        sessionMap.get(session.id).isFresh = true; // Сеанс досі активний
+                    } else {
+                        sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time, isFresh: true });
                     }
                 });
             }
         });
     }
 
-    // Збираємо весь об'єднаний розклад докупи
     let allSessions = Array.from(sessionMap.values());
     allSessions.sort((a, b) => a.time.localeCompare(b.time));
 
@@ -93,12 +94,10 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     const groupedByHall = {};
 
     for (const session of allSessions) {
-        // Ми запитуємо статус місць навіть для минулих сеансів — API це дозволяє по ID
         const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
         const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
         
-        // Оновлюємо назву залу в пам'яті сервера, щоб вона завжди була актуальною
-        sessionMap.set(session.id, { ...session, hall: hallName });
+        sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
 
         const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
         
@@ -107,7 +106,8 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
         });
 
-        const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName };
+        // Додаємо мітку isFresh для фронтенду
+        const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
         
         chronological.push(sessionData);
         
@@ -121,7 +121,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
-// POST-ендпоінт, що приймає дату і резервний кеш від клієнта
 app.post('/api/tickets', async (req, res) => {
     try {
         const { date, cachedSessions } = req.body;
@@ -135,7 +134,6 @@ app.post('/api/tickets', async (req, res) => {
     }
 });
 
-// Залишаємо GET-ендпоінт про всяк випадок для сумісності
 app.get('/api/tickets', async (req, res) => {
     try {
         const date = req.query.date;
