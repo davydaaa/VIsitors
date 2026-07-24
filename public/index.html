@@ -187,7 +187,7 @@
         }
         .session-item:last-child { border-bottom: none; }
         
-        .session-time { font-weight: bold; width: 55px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
         
         .session-name { 
@@ -275,6 +275,13 @@
             <h2>Розклад по залах</h2>
             <div id="groupedView"></div>
         </div>
+
+        <div class="card">
+            <div class="section-header">
+                <h2>Черга закінчення сеансів</h2>
+            </div>
+            <div id="endingView"></div>
+        </div>
     </div>
 </div>
 
@@ -289,7 +296,7 @@
     };
 
     const TIME_EXCEPTIONS = {
-        "ОДІССЕЯ": { "12:30": 90, "18:40": 107 },
+        "ОДІССЕЯ": { "12:30": 90, "18:00": 100 },
         "БРУДНІ ГРОШІ": { "21:15": 120 }
     };
 
@@ -379,7 +386,6 @@
         }
     }
 
-    // Фонове оновлення кожні 10 хвилин
     setInterval(() => {
         const date = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
@@ -403,16 +409,15 @@
         const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
         const hideEmptyChrono = document.getElementById('hideEmptyChrono').checked;
         
-        // Визначаємо, чи сьогоднішній день
         const selectedDate = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
         const isToday = (selectedDate === todayStr);
 
         let filteredTotal = 0;
         let chronoHtml = ``;
+        let endingSessions = []; // Масив для нового списку закінчення
         
         data.chronological.forEach(s => {
-            // Фільтр "Від поточного часу" тепер просто перевіряє мітку isFresh
             if (timeMode === 'now' && !s.isFresh) {
                 return;
             }
@@ -420,10 +425,13 @@
             if (keepHall(s.hall)) {
                 filteredTotal += s.sold;
                 
+                // Додаємо в масив закінчення до того, як застосуємо фільтр "Приховати порожні"
+                // Але оскільки ти просив, щоб всі фільтри працювали однаково, застосовуємо його і сюди
                 if (hideEmptyChrono && s.sold === 0) {
                     return; 
                 }
                 
+                // 1. Формуємо звичайний хронологічний розклад
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
@@ -433,9 +441,27 @@
                         </div>
                         <div class="session-sold">${s.sold} шт.</div>
                     </div>`;
+
+                // 2. Збираємо дані для розкладу закінчень
+                const endTimeStr = getEndTime(s.time, s.movieName);
+                const [eh, em] = endTimeStr.split(':').map(Number);
+                let endMinutes = eh * 60 + em;
+                
+                const [sh, sm] = s.time.split(':').map(Number);
+                // Якщо сеанс закінчується після опівночі (наступного дня), коригуємо сортування
+                if (endMinutes < (sh * 60 + sm)) {
+                    endMinutes += 24 * 60; 
+                }
+
+                endingSessions.push({
+                    ...s,
+                    endTimeStr: endTimeStr,
+                    endMinutes: endMinutes
+                });
             }
         });
 
+        // 3. Формуємо розклад по залах
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
@@ -463,8 +489,30 @@
             }
         }
 
+        // 4. Формуємо розклад закінчення сеансів
+        let endingHtml = ``;
+        // Сортуємо від найближчого закінчення до найпізнішого
+        endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
+        
+        endingSessions.forEach(s => {
+            endingHtml += `
+                <div class="session-item">
+                    <div class="session-time">
+                        <span style="color: var(--primary);">${s.endTimeStr}</span>
+                        <span class="session-time-end">поч. ${s.time}</span>
+                    </div>
+                    <div class="session-name">
+                        <span class="session-hall">${s.hall}</span>
+                        <span>${s.movieName}</span>
+                    </div>
+                    <div class="session-sold">${s.sold} шт.</div>
+                </div>`;
+        });
+
+        // Виводимо повідомлення, якщо порожньо
         if (chronoHtml === '') chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
         if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
+        if (endingHtml === '') endingHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
 
         const totalLabel = document.getElementById('totalLabel');
         if (timeMode === 'now' && isToday) {
@@ -476,6 +524,7 @@
         document.getElementById('totalTickets').innerText = filteredTotal;
         document.getElementById('chronologicalView').innerHTML = chronoHtml;
         document.getElementById('groupedView').innerHTML = groupedHtml;
+        document.getElementById('endingView').innerHTML = endingHtml;
     }
 </script>
 
