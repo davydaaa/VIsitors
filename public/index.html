@@ -238,34 +238,13 @@
             <div>
                 <div class="filters-title">Фільтр залів:</div>
                 <div class="checkbox-group">
-                    <label class="cb-label">
-                        <input type="checkbox" id="filterAll" checked onchange="onAllChange(event)">
-                        <span class="cb-button">Усі зали</span>
-                    </label>
-                    <label class="cb-label">
-                        <input type="checkbox" value="1" class="hall-cb" onchange="onHallChange()">
-                        <span class="cb-button">Зал 1</span>
-                    </label>
-                    <label class="cb-label">
-                        <input type="checkbox" value="2" class="hall-cb" onchange="onHallChange()">
-                        <span class="cb-button">Зал 2</span>
-                    </label>
-                    <label class="cb-label">
-                        <input type="checkbox" value="3" class="hall-cb" onchange="onHallChange()">
-                        <span class="cb-button">Зал 3</span>
-                    </label>
-                    <label class="cb-label">
-                        <input type="checkbox" value="4" class="hall-cb" onchange="onHallChange()">
-                        <span class="cb-button">Зал 4</span>
-                    </label>
-                    <label class="cb-label">
-                        <input type="checkbox" value="5" class="hall-cb" onchange="onHallChange()">
-                        <span class="cb-button">Зал 5</span>
-                    </label>
-                    <label class="cb-label">
-                        <input type="checkbox" value="6" class="hall-cb" onchange="onHallChange()">
-                        <span class="cb-button">Зал 6</span>
-                    </label>
+                    <label class="cb-label"><input type="checkbox" id="filterAll" checked onchange="onAllChange(event)"><span class="cb-button">Усі зали</span></label>
+                    <label class="cb-label"><input type="checkbox" value="1" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 1</span></label>
+                    <label class="cb-label"><input type="checkbox" value="2" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 2</span></label>
+                    <label class="cb-label"><input type="checkbox" value="3" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 3</span></label>
+                    <label class="cb-label"><input type="checkbox" value="4" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 4</span></label>
+                    <label class="cb-label"><input type="checkbox" value="5" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 5</span></label>
+                    <label class="cb-label"><input type="checkbox" value="6" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 6</span></label>
                 </div>
             </div>
         </div>
@@ -300,12 +279,6 @@
 </div>
 
 <script>
-    // =========================================================================
-    // МІНІ-АДМІНКА
-    // =========================================================================
-    
-    // 1. СТАНДАРТНА ТРИВАЛІСТЬ фільмів у хвилинах 
-    // (з урахуванням часу на титри та прибирання залу)
     const MOVIE_DURATIONS = {
         "ОДІССЕЯ": 120,
         "АКАДЕМІЯ ЧАРІВНИКІВ": 105,
@@ -315,110 +288,116 @@
         "БРУДНІ ГРОШІ": 130
     };
 
-    // 2. ВИНЯТКИ: Якщо фільм на конкретну годину має іншу тривалість 
-    // Формат: "Назва фільму": { "година:хвилина": тривалість }
     const TIME_EXCEPTIONS = {
-        "ОДІССЕЯ": {
-            "12:30": 90,  // Тільки сеанс о 12:30 триватиме 90 хвилин
-            "18:00": 100  // Сеанс о 18:00 триватиме 100 хвилин
-        },
-        "БРУДНІ ГРОШІ": {
-            "21:15": 120  // Скорочена вечірня версія
-        }
+        "ОДІССЕЯ": { "12:30": 90, "18:00": 100 },
+        "БРУДНІ ГРОШІ": { "21:15": 120 }
     };
 
-    const DEFAULT_DURATION = 120; // Якщо фільму немає в жодному списку, ставимо 2 години
+    const DEFAULT_DURATION = 120;
 
-    // Функція розрахунку часу закінчення
     function getEndTime(startTime, movieName) {
         let duration = DEFAULT_DURATION;
-        
-        // Спочатку перевіряємо, чи є виняток для цього фільму саме на цей час
         if (TIME_EXCEPTIONS[movieName] && TIME_EXCEPTIONS[movieName][startTime]) {
             duration = TIME_EXCEPTIONS[movieName][startTime];
-        } 
-        // Якщо винятку немає, беремо стандартну тривалість
-        else if (MOVIE_DURATIONS[movieName]) {
+        } else if (MOVIE_DURATIONS[movieName]) {
             duration = MOVIE_DURATIONS[movieName];
         }
-
         const [h, m] = startTime.split(':').map(Number);
         const date = new Date();
         date.setHours(h, m + duration, 0, 0);
         return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
     }
-    // =========================================================================
 
     document.getElementById('datePicker').valueAsDate = new Date();
     let globalData = null; 
 
     function onAllChange(e) {
-        const allCb = e.target;
         const hallCbs = document.querySelectorAll('.hall-cb');
-        
-        if (allCb.checked) {
+        if (e.target.checked) {
             hallCbs.forEach(cb => cb.checked = false);
-        } else {
-            const anyChecked = Array.from(hallCbs).some(cb => cb.checked);
-            if (!anyChecked) {
-                allCb.checked = true;
-            }
+        } else if (!Array.from(hallCbs).some(cb => cb.checked)) {
+            e.target.checked = true;
         }
         if (globalData) renderData();
     }
 
     function onHallChange() {
         const allCb = document.getElementById('filterAll');
-        const hallCbs = document.querySelectorAll('.hall-cb');
-        
-        const anyChecked = Array.from(hallCbs).some(cb => cb.checked);
-        
-        if (anyChecked) {
-            allCb.checked = false;
-        } else {
-            allCb.checked = true;
-        }
-        
+        const anyChecked = Array.from(document.querySelectorAll('.hall-cb')).some(cb => cb.checked);
+        allCb.checked = !anyChecked;
         if (globalData) renderData();
     }
 
-    async function fetchData() {
+    // Додано параметр isSilent, щоб фонові оновлення не блокували екран
+    async function fetchData(isSilent = false) {
         const date = document.getElementById('datePicker').value;
-        if (!date) return alert("Оберіть дату!");
+        if (!date) return;
 
         const btn = document.getElementById('fetchBtn');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
 
-        btn.disabled = true;
-        loading.style.display = 'block';
-        results.style.display = 'none';
+        if (!isSilent) {
+            btn.disabled = true;
+            loading.style.display = 'block';
+            results.style.display = 'none';
+        }
         
         try {
-            const response = await fetch(`/api/tickets?date=${date}&mode=all`);
-            const data = await response.json();
+            // Читаємо пам'ять браузера
+            const cacheKey = `relux_schedule_${date}`;
+            let cachedSessions = [];
+            try {
+                const stored = localStorage.getItem(cacheKey);
+                if (stored) cachedSessions = JSON.parse(stored);
+            } catch(e) {}
 
+            // Відправляємо POST-запит із даними з пам'яті
+            const response = await fetch(`/api/tickets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: date, cachedSessions: cachedSessions })
+            });
+            const data = await response.json();
             if (data.error) throw new Error(data.error);
+
+            // Оновлюємо пам'ять браузера новими сеансами (зберігаємо лише базові дані, без куплених місць)
+            if (data.chronological && data.chronological.length > 0) {
+                const slimCache = data.chronological.map(s => ({
+                    id: s.id, time: s.time, movieName: s.movieName, hall: s.hall
+                }));
+                localStorage.setItem(cacheKey, JSON.stringify(slimCache));
+            }
 
             globalData = data; 
             renderData(); 
             
-            results.style.display = 'block';
+            if (!isSilent) results.style.display = 'block';
         } catch (error) {
-            alert("Помилка: " + error.message);
+            if (!isSilent) alert("Помилка: " + error.message);
         } finally {
-            btn.disabled = false;
-            loading.style.display = 'none';
+            if (!isSilent) {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
         }
     }
+
+    // АВТОПІЛОТ: Оновлювати дані кожні 10 хвилин (600 000 мс)
+    setInterval(() => {
+        const date = document.getElementById('datePicker').value;
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
+        // Оновлюємо у фоні, ТІЛЬКИ якщо обрана поточна дата
+        if (date === todayStr) {
+            fetchData(true);
+        }
+    }, 10 * 60 * 1000);
 
     function keepHall(hallName) {
         const isAll = document.getElementById('filterAll').checked;
         if (isAll) return true;
-
         const selectedNums = Array.from(document.querySelectorAll('.hall-cb:checked')).map(cb => cb.value);
         if (selectedNums.length === 0) return false;
-
         return selectedNums.some(num => hallName.includes(num));
     }
 
@@ -440,26 +419,18 @@
         }
 
         let filteredTotal = 0;
-        
         let chronoHtml = ``;
         data.chronological.forEach(s => {
             let keepTime = true;
-            
             if (isToday && timeMode === 'now') {
                 const [h, m] = s.time.split(':').map(Number);
                 const sessionMinutes = (h * 60) + m;
-                if (sessionMinutes < currentMinutesTotal) {
-                    keepTime = false;
-                }
+                if (sessionMinutes < currentMinutesTotal) keepTime = false;
             }
 
             if (keepHall(s.hall) && keepTime) {
                 filteredTotal += s.sold;
-                
-                if (hideEmptyChrono && s.sold === 0) {
-                    return; 
-                }
-
+                if (hideEmptyChrono && s.sold === 0) return; 
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
@@ -468,15 +439,13 @@
                             <span>${s.movieName}</span>
                         </div>
                         <div class="session-sold">${s.sold} шт.</div>
-                    </div>
-                `;
+                    </div>`;
             }
         });
 
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
-                
                 let validSessions = sessions.filter(s => {
                     if (isToday && timeMode === 'now') {
                         const [h, m] = s.time.split(':').map(Number);
@@ -490,7 +459,6 @@
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
                         const endTime = getEndTime(s.time, s.movieName);
-                        
                         groupedHtml += `
                             <div class="session-item">
                                 <div class="session-time">
@@ -499,19 +467,14 @@
                                 </div>
                                 <div class="session-name"><span>${s.movieName}</span></div>
                                 <div class="session-sold">${s.sold} шт.</div>
-                            </div>
-                        `;
+                            </div>`;
                     });
                 }
             }
         }
 
-        if (chronoHtml === '') {
-            chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-        }
-        if (groupedHtml === '') {
-            groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-        }
+        if (chronoHtml === '') chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
+        if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
 
         const totalLabel = document.getElementById('totalLabel');
         if (timeMode === 'now' && isToday) {
