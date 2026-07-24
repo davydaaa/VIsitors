@@ -4,7 +4,7 @@ const path = require('path');
 
 const app = express();
 app.use(cors());
-// Роздаємо статику з папки public
+app.use(express.json()); // Важливо: тепер сервер вміє читати JSON від браузера
 app.use(express.static(path.join(__dirname, 'public')));
 
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
@@ -41,40 +41,39 @@ async function fetchGraphQL(url, query, variables) {
     return response.json();
 }
 
-async function getTicketsReport(targetDate, mode) {
-    // Дізнаємося поточну дату за Києвом (у форматі YYYY-MM-DD)
-    const todayKyiv = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
-    
-    let startTime;
-    if (mode === 'now' && targetDate === todayKyiv) {
-        // Якщо обрано "Від поточного часу" і це сьогодні — беремо поточний час мінус 30 хвилин (запас на рекламу)
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - 30);
-        startTime = now.toISOString();
-    } else {
-        // Якщо це "За весь день" або інший день — беремо весь розклад від 00:00
-        startTime = `${targetDate}T00:00:00.000Z`;
-    }
-    
+async function getTicketsReport(targetDate, cachedSessions) {
+    const startTime = `${targetDate}T00:00:00.000Z`;
     const endTime = `${targetDate}T23:59:59.000Z`;
 
     const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
         cinemaId: CINEMA_ID, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    let allSessions = [];
-    scheduleResult.data.fullMovies.nodes.forEach(movie => {
-        if (movie.offlineRental?.sessions) {
-            movie.offlineRental.sessions.forEach(session => {
-                allSessions.push({
-                    id: session.id,
-                    movieName: movie.name,
-                    time: new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' })
-                });
-            });
-        }
-    });
+    const sessionMap = new Map();
 
+    // 1. Додаємо ранкові сеанси з пам'яті браузера
+    if (cachedSessions && Array.isArray(cachedSessions)) {
+        cachedSessions.forEach(cs => {
+            sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall });
+        });
+    }
+
+    // 2. Додаємо свіжі сеанси, які віддав API
+    if (scheduleResult.data?.fullMovies?.nodes) {
+        scheduleResult.data.fullMovies.nodes.forEach(movie => {
+            if (movie.offlineRental?.sessions) {
+                movie.offlineRental.sessions.forEach(session => {
+                    const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
+                    if (!sessionMap.has(session.id)) {
+                        sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time });
+                    }
+                });
+            }
+        });
+    }
+
+    // Збираємо все докупи і сортуємо за часом
+    let allSessions = Array.from(sessionMap.values());
     allSessions.sort((a, b) => a.time.localeCompare(b.time));
 
     let totalSold = 0;
@@ -83,15 +82,15 @@ async function getTicketsReport(targetDate, mode) {
 
     for (const session of allSessions) {
         const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
-        const hallName = seatsResult.data.sessionById.cinemaHall.name || "Невідомо";
-        const rows = seatsResult.data.sessionById.cinemaHall.rows;
+        const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+        const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
         
         let soldForSession = 0;
         rows.forEach(row => {
             row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
         });
 
-        const sessionData = { time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName };
+        const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName };
         
         chronological.push(sessionData);
         
@@ -105,15 +104,13 @@ async function getTicketsReport(targetDate, mode) {
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
-// Наш API ендпоінт з підтримкою параметра mode
-app.get('/api/tickets', async (req, res) => {
+// Перероблено на POST, щоб приймати пам'ять з браузера
+app.post('/api/tickets', async (req, res) => {
     try {
-        const date = req.query.date;
-        const mode = req.query.mode || 'now';
+        const { date, cachedSessions } = req.body;
+        if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
-        if (!date) return res.status(400).json({ error: "Вкажіть дату у форматі YYYY-MM-DD" });
-        
-        const data = await getTicketsReport(date, mode);
+        const data = await getTicketsReport(date, cachedSessions);
         res.json(data);
     } catch (error) {
         console.error(error);
