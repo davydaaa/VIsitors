@@ -134,24 +134,28 @@
             color: var(--primary);
         }
         
+        /* Виправлене вирівнювання для шапки хронологічного списку */
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
-            padding-bottom: 8px;
+            padding-bottom: 12px;
             margin-bottom: 16px;
         }
         .section-header h2 {
+            margin-top: 0; /* Обнулення стандартного відступу браузера */
             border-bottom: none;
             margin-bottom: 0;
             padding-bottom: 0;
+            line-height: 1; /* Рівна лінійна висота для ідеального центрування */
         }
         
-        /* Оновлені стилі для кнопки-фільтра порожніх сеансів */
         .toggle-empty {
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
         }
         .toggle-empty input { display: none; }
         .toggle-empty-btn {
@@ -165,6 +169,7 @@
             border-radius: 20px;
             transition: all 0.2s ease-in-out;
             user-select: none;
+            line-height: 1.5;
         }
         .toggle-empty:hover input:not(:checked) + .toggle-empty-btn {
             border-color: #adb5bd;
