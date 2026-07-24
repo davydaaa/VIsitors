@@ -328,7 +328,6 @@
         if (globalData) renderData();
     }
 
-    // Додано параметр isSilent, щоб фонові оновлення не блокували екран
     async function fetchData(isSilent = false) {
         const date = document.getElementById('datePicker').value;
         if (!date) return;
@@ -344,7 +343,6 @@
         }
         
         try {
-            // Читаємо пам'ять браузера
             const cacheKey = `relux_schedule_${date}`;
             let cachedSessions = [];
             try {
@@ -352,7 +350,6 @@
                 if (stored) cachedSessions = JSON.parse(stored);
             } catch(e) {}
 
-            // Відправляємо POST-запит із даними з пам'яті
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -361,7 +358,6 @@
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            // Оновлюємо пам'ять браузера новими сеансами (зберігаємо лише базові дані, без куплених місць)
             if (data.chronological && data.chronological.length > 0) {
                 const slimCache = data.chronological.map(s => ({
                     id: s.id, time: s.time, movieName: s.movieName, hall: s.hall
@@ -383,11 +379,10 @@
         }
     }
 
-    // АВТОПІЛОТ: Оновлювати дані кожні 10 хвилин (600 000 мс)
+    // Фонове оновлення кожні 10 хвилин
     setInterval(() => {
         const date = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
-        // Оновлюємо у фоні, ТІЛЬКИ якщо обрана поточна дата
         if (date === todayStr) {
             fetchData(true);
         }
@@ -407,30 +402,28 @@
 
         const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
         const hideEmptyChrono = document.getElementById('hideEmptyChrono').checked;
+        
+        // Визначаємо, чи сьогоднішній день
         const selectedDate = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
         const isToday = (selectedDate === todayStr);
 
-        let currentMinutesTotal = 0;
-        if (isToday && timeMode === 'now') {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - 30);
-            currentMinutesTotal = now.getHours() * 60 + now.getMinutes();
-        }
-
         let filteredTotal = 0;
         let chronoHtml = ``;
+        
         data.chronological.forEach(s => {
-            let keepTime = true;
-            if (isToday && timeMode === 'now') {
-                const [h, m] = s.time.split(':').map(Number);
-                const sessionMinutes = (h * 60) + m;
-                if (sessionMinutes < currentMinutesTotal) keepTime = false;
+            // Фільтр "Від поточного часу" тепер просто перевіряє мітку isFresh
+            if (timeMode === 'now' && !s.isFresh) {
+                return;
             }
 
-            if (keepHall(s.hall) && keepTime) {
+            if (keepHall(s.hall)) {
                 filteredTotal += s.sold;
-                if (hideEmptyChrono && s.sold === 0) return; 
+                
+                if (hideEmptyChrono && s.sold === 0) {
+                    return; 
+                }
+                
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
@@ -446,12 +439,9 @@
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
+                
                 let validSessions = sessions.filter(s => {
-                    if (isToday && timeMode === 'now') {
-                        const [h, m] = s.time.split(':').map(Number);
-                        const sessionMinutes = (h * 60) + m;
-                        return sessionMinutes >= currentMinutesTotal;
-                    }
+                    if (timeMode === 'now' && !s.isFresh) return false;
                     return true;
                 });
 
