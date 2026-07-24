@@ -128,14 +128,47 @@
             box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
         }
 
-        /* Оновлені стилі для блоку з підсумком */
         .total-box {
             font-size: 1.5rem; 
             font-weight: bold; 
             color: var(--primary);
-            /* Прибрали margin-top, оскільки зверху більше немає заголовка */
         }
         
+        /* Стилі для шапки хронологічного списку */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        .section-header h2 {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .toggle-empty {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+        .toggle-empty:hover {
+            color: var(--text);
+        }
+        .toggle-empty input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--primary);
+        }
+
         .session-item {
             display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
         }
@@ -227,17 +260,26 @@
 
     <div id="results">
         <div class="card">
-            <!-- Заголовок h2 видалено, залишено лише один рядок із сумою -->
             <div class="total-box">
                 <span id="totalLabel">До кінця дня продано:</span> 
                 <span id="totalTickets">0</span>
             </div>
         </div>
 
-        <div class="card" id="chronologicalView">
+        <div class="card">
+            <div class="section-header">
+                <h2>Хронологічний розклад</h2>
+                <label class="toggle-empty">
+                    <input type="checkbox" id="hideEmptyChrono" onchange="renderData()">
+                    Приховати порожні сеанси
+                </label>
+            </div>
+            <div id="chronologicalView"></div>
         </div>
 
-        <div class="card" id="groupedView">
+        <div class="card">
+            <h2>Розклад по залах</h2>
+            <div id="groupedView"></div>
         </div>
     </div>
 </div>
@@ -321,6 +363,7 @@
         const data = globalData;
 
         const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
+        const hideEmptyChrono = document.getElementById('hideEmptyChrono').checked;
         const selectedDate = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
         const isToday = (selectedDate === todayStr);
@@ -334,7 +377,7 @@
 
         let filteredTotal = 0;
         
-        let chronoHtml = `<h2>Хронологічний розклад</h2>`;
+        let chronoHtml = ``;
         data.chronological.forEach(s => {
             let keepTime = true;
             
@@ -347,7 +390,13 @@
             }
 
             if (keepHall(s.hall) && keepTime) {
-                filteredTotal += s.sold;
+                filteredTotal += s.sold; // Загальна сума рахується незалежно від того, чи приховано порожній сеанс
+                
+                // Якщо увімкнено "Приховати порожні" і продано 0 квитків — пропускаємо малювання цього елемента
+                if (hideEmptyChrono && s.sold === 0) {
+                    return; 
+                }
+
                 chronoHtml += `
                     <div class="session-item">
                         <div class="session-time">${s.time}</div>
@@ -361,7 +410,7 @@
             }
         });
 
-        let groupedHtml = `<h2>Розклад по залах</h2>`;
+        let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
                 
@@ -377,6 +426,7 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
+                        // Тут ми нічого не приховуємо незалежно від чекбокса, як ти і просив
                         groupedHtml += `
                             <div class="session-item">
                                 <div class="session-time">${s.time}</div>
@@ -389,12 +439,14 @@
             }
         }
 
-        if (filteredTotal === 0 && data.chronological.length > 0) {
-            chronoHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
-            groupedHtml += `<div style="color: var(--text-muted); padding: 12px 0;">Немає активних сеансів за вибраними критеріями.</div>`;
+        // Якщо масиви вийшли порожніми (після застосування всіх фільтрів)
+        if (chronoHtml === '') {
+            chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
+        }
+        if (groupedHtml === '') {
+            groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
         }
 
-        // Динамічна зміна тексту замість перемикання заголовків
         const totalLabel = document.getElementById('totalLabel');
         if (timeMode === 'now' && isToday) {
             totalLabel.innerText = 'До кінця дня продано:';
