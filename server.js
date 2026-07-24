@@ -4,7 +4,7 @@ const path = require('path');
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // Важливо: тепер сервер вміє читати JSON від браузера
+app.use(express.json()); // Дозволяємо серверу приймати JSON
 app.use(express.static(path.join(__dirname, 'public')));
 
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
@@ -41,7 +41,13 @@ async function fetchGraphQL(url, query, variables) {
     return response.json();
 }
 
-async function getTicketsReport(targetDate, cachedSessions) {
+// ==========================================================
+// ГЛОБАЛЬНА ПАМ'ЯТЬ СЕРВЕРА
+// Зберігає всі сеанси, які сервер коли-небудь бачив за день
+// ==========================================================
+const serverSessionCache = {};
+
+async function getTicketsReport(targetDate, clientCachedSessions) {
     const startTime = `${targetDate}T00:00:00.000Z`;
     const endTime = `${targetDate}T23:59:59.000Z`;
 
@@ -49,16 +55,22 @@ async function getTicketsReport(targetDate, cachedSessions) {
         cinemaId: CINEMA_ID, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    const sessionMap = new Map();
+    // Ініціалізуємо пам'ять для конкретної дати
+    if (!serverSessionCache[targetDate]) {
+        serverSessionCache[targetDate] = new Map();
+    }
+    const sessionMap = serverSessionCache[targetDate];
 
-    // 1. Додаємо ранкові сеанси з пам'яті браузера
-    if (cachedSessions && Array.isArray(cachedSessions)) {
-        cachedSessions.forEach(cs => {
-            sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall });
+    // 1. НАВЧАННЯ ВІД КЛІЄНТА: Якщо сервер перезавантажився, він відновить пам'ять з браузера
+    if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
+        clientCachedSessions.forEach(cs => {
+            if (!sessionMap.has(cs.id)) {
+                sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall });
+            }
         });
     }
 
-    // 2. Додаємо свіжі сеанси, які віддав API
+    // 2. СВІЖІ ДАНІ З API: Додаємо сеанси, які віддає Планета Кіно просто зараз
     if (scheduleResult.data?.fullMovies?.nodes) {
         scheduleResult.data.fullMovies.nodes.forEach(movie => {
             if (movie.offlineRental?.sessions) {
@@ -72,7 +84,7 @@ async function getTicketsReport(targetDate, cachedSessions) {
         });
     }
 
-    // Збираємо все докупи і сортуємо за часом
+    // Збираємо весь об'єднаний розклад докупи
     let allSessions = Array.from(sessionMap.values());
     allSessions.sort((a, b) => a.time.localeCompare(b.time));
 
@@ -81,8 +93,13 @@ async function getTicketsReport(targetDate, cachedSessions) {
     const groupedByHall = {};
 
     for (const session of allSessions) {
+        // Ми запитуємо статус місць навіть для минулих сеансів — API це дозволяє по ID
         const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
         const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+        
+        // Оновлюємо назву залу в пам'яті сервера, щоб вона завжди була актуальною
+        sessionMap.set(session.id, { ...session, hall: hallName });
+
         const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
         
         let soldForSession = 0;
@@ -104,13 +121,27 @@ async function getTicketsReport(targetDate, cachedSessions) {
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
-// Перероблено на POST, щоб приймати пам'ять з браузера
+// POST-ендпоінт, що приймає дату і резервний кеш від клієнта
 app.post('/api/tickets', async (req, res) => {
     try {
         const { date, cachedSessions } = req.body;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
         const data = await getTicketsReport(date, cachedSessions);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Помилка при зборі даних" });
+    }
+});
+
+// Залишаємо GET-ендпоінт про всяк випадок для сумісності
+app.get('/api/tickets', async (req, res) => {
+    try {
+        const date = req.query.date;
+        if (!date) return res.status(400).json({ error: "Вкажіть дату" });
+        
+        const data = await getTicketsReport(date, []);
         res.json(data);
     } catch (error) {
         console.error(error);
