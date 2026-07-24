@@ -187,7 +187,6 @@
         }
         .session-item:last-child { border-bottom: none; }
         
-        /* Трохи розширили блок часу, щоб вмістити два рядки */
         .session-time { font-weight: bold; width: 55px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
         
@@ -302,24 +301,47 @@
 
 <script>
     // =========================================================================
-    // МІНІ-АДМІНКА: Вкажи тут тривалість фільмів у хвилинах 
-    // (з урахуванням часу на титри та прибирання залу)
+    // МІНІ-АДМІНКА
     // =========================================================================
+    
+    // 1. СТАНДАРТНА ТРИВАЛІСТЬ фільмів у хвилинах 
+    // (з урахуванням часу на титри та прибирання залу)
     const MOVIE_DURATIONS = {
         "ОДІССЕЯ": 120,
         "АКАДЕМІЯ ЧАРІВНИКІВ": 105,
         "ІСТОРІЯ ІГРАШОК 5": 100,
         "ПОСІПАКИ І МОНСТРЯКИ": 95,
         "ТЕСТ НА ТЕЩУ 2": 110,
-        "БРУДНІ ГРОШІ": 130,
-        "ПОКИ СМЕРТЬ НЕ РОЗЛУЧИТЬ НАС": 100,
-        "ПРОБУДЖЕННЯ: ЧЕРНИЦЯ З БОРЛІ": 110
+        "БРУДНІ ГРОШІ": 130
     };
-    const DEFAULT_DURATION = 120; // Якщо фільму немає в списку, ставимо 2 години за замовчуванням
+
+    // 2. ВИНЯТКИ: Якщо фільм на конкретну годину має іншу тривалість 
+    // Формат: "Назва фільму": { "година:хвилина": тривалість }
+    const TIME_EXCEPTIONS = {
+        "ОДІССЕЯ": {
+            "12:30": 90,  // Тільки сеанс о 12:30 триватиме 90 хвилин
+            "18:00": 100  // Сеанс о 18:00 триватиме 100 хвилин
+        },
+        "БРУДНІ ГРОШІ": {
+            "21:15": 120  // Скорочена вечірня версія
+        }
+    };
+
+    const DEFAULT_DURATION = 120; // Якщо фільму немає в жодному списку, ставимо 2 години
 
     // Функція розрахунку часу закінчення
     function getEndTime(startTime, movieName) {
-        const duration = MOVIE_DURATIONS[movieName] || DEFAULT_DURATION;
+        let duration = DEFAULT_DURATION;
+        
+        // Спочатку перевіряємо, чи є виняток для цього фільму саме на цей час
+        if (TIME_EXCEPTIONS[movieName] && TIME_EXCEPTIONS[movieName][startTime]) {
+            duration = TIME_EXCEPTIONS[movieName][startTime];
+        } 
+        // Якщо винятку немає, беремо стандартну тривалість
+        else if (MOVIE_DURATIONS[movieName]) {
+            duration = MOVIE_DURATIONS[movieName];
+        }
+
         const [h, m] = startTime.split(':').map(Number);
         const date = new Date();
         date.setHours(h, m + duration, 0, 0);
@@ -467,7 +489,6 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
-                        // Вираховуємо час закінчення
                         const endTime = getEndTime(s.time, s.movieName);
                         
                         groupedHtml += `
