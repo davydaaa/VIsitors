@@ -56,12 +56,11 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     }
     const sessionMap = serverSessionCache[targetDate];
 
-    // Очищаємо статус "свіжості" перед новим парсингом
+    // Очищаємо статус "свіжості"
     for (let session of sessionMap.values()) {
         session.isFresh = false;
     }
 
-    // 1. Відновлюємо пам'ять з клієнта (якщо сервер перезапускався)
     if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
         clientCachedSessions.forEach(cs => {
             if (!sessionMap.has(cs.id)) {
@@ -70,14 +69,13 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         });
     }
 
-    // 2. Свіжі дані від API (ті, що сайт віддає прямо зараз)
     if (scheduleResult.data?.fullMovies?.nodes) {
         scheduleResult.data.fullMovies.nodes.forEach(movie => {
             if (movie.offlineRental?.sessions) {
                 movie.offlineRental.sessions.forEach(session => {
                     const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
                     if (sessionMap.has(session.id)) {
-                        sessionMap.get(session.id).isFresh = true; // Сеанс досі активний
+                        sessionMap.get(session.id).isFresh = true; 
                     } else {
                         sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time, isFresh: true });
                     }
@@ -90,54 +88,66 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     allSessions.sort((a, b) => a.time.localeCompare(b.time));
 
     let totalSold = 0;
-    let totalBooked = 0; // Додали загальну суму броні
+    let totalBooked = 0;
     const chronological = [];
     const groupedByHall = {};
 
-    for (const session of allSessions) {
-        const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
-        const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+    // 🚀 НОВИЙ МЕХАНІЗМ: Обробка партіями (по 5 сеансів одночасно)
+    const CHUNK_SIZE = 5; 
+    
+    for (let i = 0; i < allSessions.length; i += CHUNK_SIZE) {
+        const chunk = allSessions.slice(i, i + CHUNK_SIZE);
         
-        sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
+        // Запускаємо відразу 5 запитів паралельно
+        await Promise.all(chunk.map(async (session) => {
+            try {
+                const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
+                const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+                
+                sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
 
-        const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
-        
-        let soldForSession = 0;
-        let bookedForSession = 0; // Додано лічильник для заброньованих крісел
-        
-        rows.forEach(row => {
-            row.seats.forEach(seat => { 
-                if (seat.state === 'SOLD') {
-                    soldForSession++; 
-                } else if (seat.state === 'BOOKED') {
-                    bookedForSession++; // Рахуємо заброньовані
-                }
-            });
-        });
+                const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
+                
+                let soldForSession = 0;
+                let bookedForSession = 0;
+                
+                rows.forEach(row => {
+                    row.seats.forEach(seat => { 
+                        if (seat.state === 'SOLD') soldForSession++; 
+                        else if (seat.state === 'BOOKED') bookedForSession++;
+                    });
+                });
 
-        // Додаємо мітку isFresh та booked для фронтенду
-        const sessionData = { 
-            id: session.id, 
-            time: session.time, 
-            movieName: session.movieName, 
-            sold: soldForSession, 
-            booked: bookedForSession, // Передаємо кількість броні на сторінку
-            hall: hallName, 
-            isFresh: session.isFresh 
-        };
-        
-        chronological.push(sessionData);
-        
-        if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
-        groupedByHall[hallName].push(sessionData);
-        
-        totalSold += soldForSession;
-        totalBooked += bookedForSession;
-        
-        await delay(300);
+                const sessionData = { 
+                    id: session.id, time: session.time, movieName: session.movieName, 
+                    sold: soldForSession, booked: bookedForSession, hall: hallName, isFresh: session.isFresh 
+                };
+                
+                chronological.push(sessionData);
+                
+                if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
+                groupedByHall[hallName].push(sessionData);
+                
+                totalSold += soldForSession;
+                totalBooked += bookedForSession;
+            } catch (err) {
+                console.error(`Помилка завантаження місць для сеансу ${session.id}:`, err);
+            }
+        }));
+
+        // Робимо паузу тільки після обробки цілої партії (а не після кожного сеансу)
+        if (i + CHUNK_SIZE < allSessions.length) {
+            await delay(300);
+        }
     }
 
-    // Віддаємо на фронтенд також і загальну суму броні (totalBooked) про всяк випадок
+    // Оскільки паралельні запити могли завершитися в різний час, 
+    // нам потрібно відсортувати масиви за часом ще раз перед відправкою на фронтенд
+    chronological.sort((a, b) => a.time.localeCompare(b.time));
+    for (const hallName in groupedByHall) {
+        groupedByHall[hallName].sort((a, b) => a.time.localeCompare(b.time));
+    }
+
     return { date: targetDate, total: totalSold, totalBooked: totalBooked, chronological, grouped: groupedByHall };
 }
 
