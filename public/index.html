@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Сеанси RELUX</title>
-
-    <link rel="icon" type="image/png" href="favicon.png">
     
+    <link rel="icon" type="image/png" href="favicon.png">
+
     <style>
         :root {
             --bg: #f8f9fa;
@@ -281,7 +281,7 @@
 
         <div class="card">
             <div class="section-header">
-                <h2>Найближче закінчуються</h2>
+                <h2>Зараз тривають (найближче закінчуються)</h2>
             </div>
             <div id="endingView"></div>
         </div>
@@ -420,7 +420,6 @@
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
         const isToday = (selectedDate === todayStr);
 
-        // Визначаємо реальний поточний час у хвилинах для фільтра "Черги закінчення"
         let actualCurrentMinutes = 0;
         if (isToday) {
             const realNow = new Date();
@@ -432,31 +431,29 @@
         let endingSessions = [];
         
         data.chronological.forEach(s => {
-            // Перевіряємо фільтр залів (працює для всіх списків)
             if (!keepHall(s.hall)) return;
 
-            // Збираємо дані закінчення до перевірки isFresh, 
-            // щоб захопити навіть ті сеанси, що почались давно
             const endTimeStr = getEndTime(s.time, s.movieName);
             const [eh, em] = endTimeStr.split(':').map(Number);
             let endMinutes = eh * 60 + em;
             
             const [sh, sm] = s.time.split(':').map(Number);
-            if (endMinutes < (sh * 60 + sm)) {
+            const startMinutes = sh * 60 + sm;
+            
+            if (endMinutes < startMinutes) {
                 endMinutes += 24 * 60; // Захист від сеансів, що закінчуються за опівніч
             }
 
             // 1. Логіка для "Черги закінчення"
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
-                // Ховаємо з черги закінчення тільки ті сеанси, які вже реально закінчились
-                if (endMinutes < actualCurrentMinutes) {
+                // Ховаємо ті, що вже закінчились, А ТАКОЖ ті, що ще не почались
+                if (endMinutes < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
                     keepForEnding = false;
                 }
             }
 
             if (keepForEnding) {
-                // Фільтр порожніх сеансів застосовуємо і сюди, як домовлялись
                 if (!(hideEmptyChrono && s.sold === 0)) {
                     endingSessions.push({
                         ...s,
@@ -468,7 +465,7 @@
 
             // 2. Логіка для "Хронологічного розкладу" та "Загальної суми"
             if (timeMode === 'now' && !s.isFresh) {
-                return; // Тут ми і далі відсікаємо ті, що вже почалися
+                return; 
             }
 
             filteredTotal += s.sold;
@@ -554,4 +551,3 @@
 
 </body>
 </html>
-
