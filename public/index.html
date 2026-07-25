@@ -265,7 +265,6 @@
 
         <div class="card">
             <div class="section-header">
-                <!-- Додано ID для хронологічного списку -->
                 <h2 id="chronoHeader">Найближчі сеанси</h2>
                 <label class="toggle-empty">
                     <input type="checkbox" id="hideEmptyChrono" onchange="renderData()">
@@ -448,7 +447,8 @@
             // 1. Логіка для "Черги закінчення"
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
-                if (endMinutes < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
+                // Додаємо 10 хвилин буферу до endMinutes
+                if ((endMinutes + 10) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
                     keepForEnding = false;
                 }
             }
@@ -537,7 +537,7 @@
 
         const totalLabel = document.getElementById('totalLabel');
         const endingHeader = document.getElementById('endingHeader');
-        const chronoHeader = document.getElementById('chronoHeader'); // Отримуємо наш новий заголовок
+        const chronoHeader = document.getElementById('chronoHeader'); 
 
         // Оновлення заголовків в залежності від вибраного режиму
         if (timeMode === 'now') {
