@@ -265,7 +265,8 @@
 
         <div class="card">
             <div class="section-header">
-                <h2>Найближчі сеанси</h2>
+                <!-- Додано ID для хронологічного списку -->
+                <h2 id="chronoHeader">Найближчі сеанси</h2>
                 <label class="toggle-empty">
                     <input type="checkbox" id="hideEmptyChrono" onchange="renderData()">
                     <span class="toggle-empty-btn">Приховати порожні</span>
@@ -281,7 +282,6 @@
 
         <div class="card">
             <div class="section-header">
-                <!-- Додано ID для динамічної зміни заголовка -->
                 <h2 id="endingHeader">Зараз тривають - Час виходу</h2>
             </div>
             <div id="endingView"></div>
@@ -535,14 +535,17 @@
         if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
         if (endingHtml === '') endingHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
 
-        // Оновлення заголовків в залежності від вибраного режиму
         const totalLabel = document.getElementById('totalLabel');
         const endingHeader = document.getElementById('endingHeader');
+        const chronoHeader = document.getElementById('chronoHeader'); // Отримуємо наш новий заголовок
 
+        // Оновлення заголовків в залежності від вибраного режиму
         if (timeMode === 'now') {
             endingHeader.innerText = 'Зараз тривають - Час виходу';
+            chronoHeader.innerText = 'Найближчі сеанси';
         } else {
             endingHeader.innerText = 'Час закінчення';
+            chronoHeader.innerText = 'Сеанси';
         }
 
         if (timeMode === 'now' && isToday) {
