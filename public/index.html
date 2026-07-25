@@ -15,6 +15,7 @@
             --text-muted: #6c757d;
             --primary: #0d6efd;
             --primary-hover: #0b5ed7;
+            --warning: #fd7e14; /* Колір для броні */
             --border: #dee2e6;
             --radius: 12px;
         }
@@ -135,6 +136,10 @@
             font-size: 1.5rem; 
             font-weight: bold; 
             color: var(--primary);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         
         .section-header {
@@ -210,7 +215,8 @@
             white-space: nowrap;
             letter-spacing: 0.5px;
         }
-        .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; }
+        .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; text-align: right; }
+        .session-booked { color: var(--warning); font-size: 0.85em; font-weight: 500; margin-left: 4px; }
         
         #loading { display: none; margin-top: 16px; color: var(--text-muted); }
         #results { display: none; }
@@ -409,6 +415,15 @@
         return selectedNums.some(num => hallName.includes(num));
     }
 
+    // Допоміжна функція для гарного виводу проданих та заброньованих квитків
+    function getTicketsHtml(sold, booked) {
+        let html = `${sold} шт.`;
+        if (booked && booked > 0) {
+            html += `<span class="session-booked">(+${booked} бр.)</span>`;
+        }
+        return html;
+    }
+
     function renderData() {
         if (!globalData) return;
         const data = globalData;
@@ -426,7 +441,8 @@
             actualCurrentMinutes = realNow.getHours() * 60 + realNow.getMinutes();
         }
 
-        let filteredTotal = 0;
+        let filteredTotalSold = 0;
+        let filteredTotalBooked = 0; // Для підрахунку загальної броні
         let chronoHtml = ``;
         let endingSessions = [];
         
@@ -444,17 +460,17 @@
                 endMinutes += 24 * 60; 
             }
 
-            // 1. Логіка для "Черги закінчення"
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
-                // Додаємо 10 хвилин буферу до endMinutes
                 if ((endMinutes + 10) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
                     keepForEnding = false;
                 }
             }
 
             if (keepForEnding) {
-                if (!(hideEmptyChrono && s.sold === 0)) {
+                // Враховуємо і броні при приховуванні порожніх
+                let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
+                if (!(hideEmptyChrono && !hasTickets)) {
                     endingSessions.push({
                         ...s,
                         endTimeStr: endTimeStr,
@@ -463,14 +479,15 @@
                 }
             }
 
-            // 2. Логіка для "Хронологічного розкладу"
             if (timeMode === 'now' && !s.isFresh) {
                 return; 
             }
 
-            filteredTotal += s.sold;
+            filteredTotalSold += s.sold;
+            if (s.booked) filteredTotalBooked += s.booked;
             
-            if (hideEmptyChrono && s.sold === 0) {
+            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
+            if (hideEmptyChrono && !hasTickets) {
                 return; 
             }
             
@@ -481,11 +498,10 @@
                         <span class="session-hall">${s.hall}</span>
                         <span>${s.movieName}</span>
                     </div>
-                    <div class="session-sold">${s.sold} шт.</div>
+                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
                 </div>`;
         });
 
-        // 3. Формуємо розклад по залах
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
@@ -505,14 +521,13 @@
                                     <span class="session-time-end">до ${endTime}</span>
                                 </div>
                                 <div class="session-name"><span>${s.movieName}</span></div>
-                                <div class="session-sold">${s.sold} шт.</div>
+                                <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
                             </div>`;
                     });
                 }
             }
         }
 
-        // 4. Формуємо розклад закінчення сеансів
         let endingHtml = ``;
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
         
@@ -527,7 +542,7 @@
                         <span class="session-hall">${s.hall}</span>
                         <span>${s.movieName}</span>
                     </div>
-                    <div class="session-sold">${s.sold} шт.</div>
+                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
                 </div>`;
         });
 
@@ -539,7 +554,6 @@
         const endingHeader = document.getElementById('endingHeader');
         const chronoHeader = document.getElementById('chronoHeader'); 
 
-        // Оновлення заголовків в залежності від вибраного режиму
         if (timeMode === 'now') {
             endingHeader.innerText = 'Зараз тривають - Час виходу';
             chronoHeader.innerText = 'Найближчі сеанси';
@@ -554,7 +568,13 @@
             totalLabel.innerText = 'Загалом продано:';
         }
 
-        document.getElementById('totalTickets').innerText = filteredTotal;
+        // Оновлюємо загальну статистику з урахуванням броні
+        let totalHtml = `${filteredTotalSold}`;
+        if (filteredTotalBooked > 0) {
+            totalHtml += ` <span style="color: var(--warning); font-size: 0.65em; vertical-align: middle;">(+${filteredTotalBooked} бронь)</span>`;
+        }
+        document.getElementById('totalTickets').innerHTML = totalHtml;
+        
         document.getElementById('chronologicalView').innerHTML = chronoHtml;
         document.getElementById('groupedView').innerHTML = groupedHtml;
         document.getElementById('endingView').innerHTML = endingHtml;
