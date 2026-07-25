@@ -92,13 +92,13 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     const chronological = [];
     const groupedByHall = {};
 
-    // 🚀 НОВИЙ МЕХАНІЗМ: Обробка партіями (по 5 сеансів одночасно)
-    const CHUNK_SIZE = 5; 
+    // 🔥 СТАВИМО 25, щоб при 20-24 сеансах все вантажилось за 1 раз без пауз
+    const CHUNK_SIZE = 25; 
     
     for (let i = 0; i < allSessions.length; i += CHUNK_SIZE) {
         const chunk = allSessions.slice(i, i + CHUNK_SIZE);
         
-        // Запускаємо відразу 5 запитів паралельно
+        // Запускаємо всі запити партії паралельно
         await Promise.all(chunk.map(async (session) => {
             try {
                 const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
@@ -135,14 +135,12 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             }
         }));
 
-        // Робимо паузу тільки після обробки цілої партії (а не після кожного сеансу)
+        // Пауза спрацює ТІЛЬКИ якщо сеансів буде більше ніж 25
         if (i + CHUNK_SIZE < allSessions.length) {
             await delay(300);
         }
     }
 
-    // Оскільки паралельні запити могли завершитися в різний час, 
-    // нам потрібно відсортувати масиви за часом ще раз перед відправкою на фронтенд
     chronological.sort((a, b) => a.time.localeCompare(b.time));
     for (const hallName in groupedByHall) {
         groupedByHall[hallName].sort((a, b) => a.time.localeCompare(b.time));
