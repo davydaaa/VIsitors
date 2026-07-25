@@ -90,6 +90,7 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     allSessions.sort((a, b) => a.time.localeCompare(b.time));
 
     let totalSold = 0;
+    let totalBooked = 0; // Додали загальну суму броні
     const chronological = [];
     const groupedByHall = {};
 
@@ -102,12 +103,28 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
         
         let soldForSession = 0;
+        let bookedForSession = 0; // Додано лічильник для заброньованих крісел
+        
         rows.forEach(row => {
-            row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
+            row.seats.forEach(seat => { 
+                if (seat.state === 'SOLD') {
+                    soldForSession++; 
+                } else if (seat.state === 'BOOKED') {
+                    bookedForSession++; // Рахуємо заброньовані
+                }
+            });
         });
 
-        // Додаємо мітку isFresh для фронтенду
-        const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
+        // Додаємо мітку isFresh та booked для фронтенду
+        const sessionData = { 
+            id: session.id, 
+            time: session.time, 
+            movieName: session.movieName, 
+            sold: soldForSession, 
+            booked: bookedForSession, // Передаємо кількість броні на сторінку
+            hall: hallName, 
+            isFresh: session.isFresh 
+        };
         
         chronological.push(sessionData);
         
@@ -115,10 +132,13 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         groupedByHall[hallName].push(sessionData);
         
         totalSold += soldForSession;
+        totalBooked += bookedForSession;
+        
         await delay(300);
     }
 
-    return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
+    // Віддаємо на фронтенд також і загальну суму броні (totalBooked) про всяк випадок
+    return { date: targetDate, total: totalSold, totalBooked: totalBooked, chronological, grouped: groupedByHall };
 }
 
 app.post('/api/tickets', async (req, res) => {
