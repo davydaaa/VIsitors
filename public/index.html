@@ -281,7 +281,8 @@
 
         <div class="card">
             <div class="section-header">
-                <h2>Час закінчення</h2>
+                <!-- Додано ID для динамічної зміни заголовка -->
+                <h2 id="endingHeader">Зараз тривають - Час виходу</h2>
             </div>
             <div id="endingView"></div>
         </div>
@@ -441,13 +442,12 @@
             const startMinutes = sh * 60 + sm;
             
             if (endMinutes < startMinutes) {
-                endMinutes += 24 * 60; // Захист від сеансів, що закінчуються за опівніч
+                endMinutes += 24 * 60; 
             }
 
             // 1. Логіка для "Черги закінчення"
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
-                // Ховаємо ті, що вже закінчились, А ТАКОЖ ті, що ще не почались
                 if (endMinutes < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
                     keepForEnding = false;
                 }
@@ -463,7 +463,7 @@
                 }
             }
 
-            // 2. Логіка для "Хронологічного розкладу" та "Загальної суми"
+            // 2. Логіка для "Хронологічного розкладу"
             if (timeMode === 'now' && !s.isFresh) {
                 return; 
             }
@@ -535,7 +535,16 @@
         if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
         if (endingHtml === '') endingHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
 
+        // Оновлення заголовків в залежності від вибраного режиму
         const totalLabel = document.getElementById('totalLabel');
+        const endingHeader = document.getElementById('endingHeader');
+
+        if (timeMode === 'now') {
+            endingHeader.innerText = 'Зараз тривають - Час виходу';
+        } else {
+            endingHeader.innerText = 'Час закінчення';
+        }
+
         if (timeMode === 'now' && isToday) {
             totalLabel.innerText = 'До кінця дня продано:';
         } else {
