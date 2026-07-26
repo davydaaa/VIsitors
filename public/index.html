@@ -215,7 +215,6 @@
         }
         .session-item:last-child { border-bottom: none; }
         
-        /* Синій фон */
         .session-item.highlighted {
             background-color: rgba(13, 110, 253, 0.06); 
             padding: 12px 16px;
@@ -235,13 +234,11 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* Анімація для плавного мигання червоного фону */
         @keyframes pulse-danger-bg {
             0% { background-color: rgba(220, 53, 69, 0.03); }
             100% { background-color: rgba(220, 53, 69, 0.15); }
         }
 
-        /* Червоний фон з анімацією */
         .session-item.highlighted-danger {
             padding: 12px 16px;
             margin: 4px -16px;
@@ -261,7 +258,6 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* Ширина 65px */
         .session-time { font-weight: bold; width: 65px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
         .time-main { color: var(--text); transition: color 0.2s; } 
@@ -587,7 +583,8 @@
 
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
-                if ((endMinutes + 10) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
+                // 🔥 ЗАМІНЕНО: +10 на +5
+                if ((endMinutes + 5) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
                     keepForEnding = false;
                 }
             }
@@ -616,7 +613,8 @@
             
             let itemClass = "";
             if (isToday) {
-                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 10);
+                // 🔥 ЗАМІНЕНО: +10 на +5
+                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 5);
                 if (isRunning) {
                     itemClass = "highlighted"; 
                 }
@@ -672,7 +670,8 @@
                     s.startMinutes = startMinutes;
 
                     if (timeMode === 'now' && isToday) {
-                        if (actualCurrentMinutes > (s.endMinutes + 10)) return false;
+                        // 🔥 ЗАМІНЕНО: +10 на +5
+                        if (actualCurrentMinutes > (s.endMinutes + 5)) return false;
                     } else if (timeMode === 'now' && !isToday) {
                         if (!s.isFresh) return false;
                     }
@@ -684,14 +683,19 @@
                     validSessions.forEach(s => {
                         let itemClass = "";
                         if (isToday) {
-                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
-                            if (isRunning) {
+                            // 🔥 ЗАМІНЕНО: +10 на +5
+                            let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
+                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
+
+                            if (isDangerZone) {
+                                itemClass = "highlighted-danger"; 
+                            } else if (isRunning) {
                                 itemClass = "highlighted"; 
                             }
                         }
 
                         let timeContentHtml = "";
-                        if (itemClass === "highlighted") {
+                        if (itemClass === "highlighted" || itemClass === "highlighted-danger") {
                             timeContentHtml = `
                                 <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.time}</span>
                                 <span class="time-main">${s.endTimeStr}</span>
@@ -722,7 +726,8 @@
         endingSessions.forEach(s => {
             let itemClass = "";
             if (isToday) {
-                let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
+                // 🔥 ЗАМІНЕНО: +10 на +5
+                let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
                 let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
 
                 if (isDangerZone) {
@@ -732,7 +737,6 @@
                 }
             }
 
-            // 🔥 Змінено порядок: маленький "поч." зверху, великий час закінчення знизу
             endingHtml += `
                 <div class="session-item ${itemClass}">
                     <div class="session-time">
