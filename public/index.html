@@ -242,7 +242,6 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* Повернено ширину 60px */
         .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
         /* Час за замовчуванням чорний */
@@ -552,16 +551,21 @@
                 return; 
             }
             
-            let highlightClass = "";
+            // 🔥 Універсальна логіка статусу (для "Найближчі сеанси")
+            let itemClass = "";
             if (isToday) {
-                let isRunning = actualCurrentMinutes >= startMinutes && actualCurrentMinutes <= endMinutes;
-                if (isRunning) {
-                    highlightClass = "highlighted";
+                let isDangerZone = actualCurrentMinutes >= (endMinutes - 10) && actualCurrentMinutes <= (endMinutes + 10);
+                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes < (endMinutes - 10);
+
+                if (isDangerZone) {
+                    itemClass = "highlighted-danger"; 
+                } else if (isRunning) {
+                    itemClass = "highlighted"; 
                 }
             }
 
             chronoHtml += `
-                <div class="session-item ${highlightClass}">
+                <div class="session-item ${itemClass}">
                     <div class="session-time"><span class="time-main">${s.time}</span></div>
                     <div class="session-name">
                         <span class="session-hall">${s.hall}</span>
@@ -599,10 +603,11 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
+                        // 🔥 Універсальна логіка статусу (для "Розклад по залах")
                         let itemClass = "";
                         if (isToday) {
                             let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
-                            let isRunning = actualCurrentMinutes >= s.startMinutes && actualCurrentMinutes < (s.endMinutes - 10);
+                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
 
                             if (isDangerZone) {
                                 itemClass = "highlighted-danger"; 
@@ -629,11 +634,11 @@
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
         
         endingSessions.forEach(s => {
+            // 🔥 Універсальна логіка статусу (для "Зараз тривають")
             let itemClass = "";
-            
             if (isToday) {
                 let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
-                let isRunning = actualCurrentMinutes >= s.startMinutes && actualCurrentMinutes < (s.endMinutes - 10);
+                let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
 
                 if (isDangerZone) {
                     itemClass = "highlighted-danger"; 
@@ -642,7 +647,6 @@
                 }
             }
 
-            // 🔥 Прибрано "до " перед часом
             endingHtml += `
                 <div class="session-item ${itemClass}">
                     <div class="session-time">
