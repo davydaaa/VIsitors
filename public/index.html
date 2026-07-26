@@ -133,6 +133,26 @@
             box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
         }
 
+        /* Кнопка розгортання єдиної черги */
+        #toggleUnifiedBtn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 12px;
+            text-align: center;
+            display: block;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: rgba(13, 110, 253, 0.05);
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #toggleUnifiedBtn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
         .total-box {
             font-size: 1.5rem; 
             font-weight: bold; 
@@ -257,7 +277,7 @@
             color: var(--danger);
         }
 
-        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
+        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .session-name { 
             flex-grow: 1; 
@@ -319,10 +339,22 @@
             </div>
         </div>
 
+        <!-- Кнопка для розгортання спільної черги -->
+        <button id="toggleUnifiedBtn" onclick="toggleUnifiedView()">⏱ Показати захід і вихід разом</button>
+
         <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
     </div>
 
     <div id="results">
+        
+        <!-- Новий блок: Єдина хронологія (Захід і вихід) -->
+        <div class="card" id="unifiedCard" style="display: none; border: 2px solid var(--primary);">
+            <div class="section-header">
+                <h2>Хронологія: Захід і вихід</h2>
+            </div>
+            <div id="unifiedViewList"></div>
+        </div>
+
         <div class="card">
             <div class="total-box">
                 <span id="totalLabel">До кінця дня продано:</span> 
@@ -375,6 +407,26 @@
     };
 
     const DEFAULT_DURATION = 120;
+
+    let isUnifiedOpen = false;
+
+    function toggleUnifiedView() {
+        isUnifiedOpen = !isUnifiedOpen;
+        const btn = document.getElementById('toggleUnifiedBtn');
+        const card = document.getElementById('unifiedCard');
+        
+        if (isUnifiedOpen) {
+            btn.innerHTML = '⏱ Сховати захід і вихід';
+            btn.style.background = 'var(--primary)';
+            btn.style.color = 'white';
+            card.style.display = 'block';
+        } else {
+            btn.innerHTML = '⏱ Показати захід і вихід разом';
+            btn.style.background = 'rgba(13, 110, 253, 0.05)';
+            btn.style.color = 'var(--primary)';
+            card.style.display = 'none';
+        }
+    }
 
     function getEndTime(startTime, movieName) {
         let duration = DEFAULT_DURATION;
@@ -505,6 +557,7 @@
         let filteredTotalBooked = 0; 
         let chronoHtml = ``;
         let endingSessions = [];
+        let unifiedEvents = []; // Для нової спільної черги
         
         data.chronological.forEach(s => {
             if (!keepHall(s.hall)) return;
@@ -520,6 +573,24 @@
                 endMinutes += 24 * 60; 
             }
 
+            // Збираємо дані для СПІЛЬНОЇ ЧЕРГИ
+            let keepStart = true;
+            let keepEnd = true;
+            if (timeMode === 'now' && isToday) {
+                if (startMinutes < actualCurrentMinutes) keepStart = false;
+                if (endMinutes < actualCurrentMinutes) keepEnd = false;
+            } else if (timeMode === 'now' && !isToday) {
+                if (!s.isFresh) {
+                    keepStart = false;
+                    keepEnd = false;
+                }
+            }
+            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
+            if (!(hideEmptyChrono && !hasTickets)) {
+                if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.time, evMins: startMinutes });
+                if (keepEnd) unifiedEvents.push({ ...s, type: 'end', evTimeStr: endTimeStr, evMins: endMinutes });
+            }
+
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
                 if ((endMinutes + 10) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
@@ -528,7 +599,6 @@
             }
 
             if (keepForEnding) {
-                let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
                 if (!(hideEmptyChrono && !hasTickets)) {
                     endingSessions.push({
                         ...s,
@@ -546,7 +616,6 @@
             filteredTotalSold += s.sold;
             if (s.booked) filteredTotalBooked += s.booked;
             
-            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
             if (hideEmptyChrono && !hasTickets) {
                 return; 
             }
@@ -570,6 +639,29 @@
                 </div>`;
         });
 
+        // 🔥 Рендер СПІЛЬНОЇ ЧЕРГИ
+        unifiedEvents.sort((a, b) => a.evMins - b.evMins);
+        let unifiedHtml = ``;
+        unifiedEvents.forEach(ev => {
+            let tColor = ev.type === 'start' ? 'var(--primary)' : 'var(--danger)';
+            let tLabel = ev.type === 'start' ? 'вхід' : 'вихід';
+            unifiedHtml += `
+                <div class="session-item" style="background-color: var(--surface);">
+                    <div class="session-time" style="width: 65px;">
+                        <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
+                        <span class="session-time-end">${tLabel}</span>
+                    </div>
+                    <div class="session-name">
+                        <span class="session-hall">${ev.hall}</span>
+                        <span>${ev.movieName}</span>
+                    </div>
+                    <div class="session-sold">${getTicketsHtml(ev.sold, ev.booked)}</div>
+                </div>`;
+        });
+        if (unifiedHtml === '') unifiedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає подій для відображення.</div>`;
+        document.getElementById('unifiedViewList').innerHTML = unifiedHtml;
+
+        // Розклад по залах
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
@@ -588,7 +680,6 @@
                     s.startMinutes = startMinutes;
 
                     if (timeMode === 'now' && isToday) {
-                        // 🔥 ЗМІНЕНО: сеанс висить у списку ще 10 хвилин після закінчення
                         if (actualCurrentMinutes > (s.endMinutes + 10)) return false;
                     } else if (timeMode === 'now' && !isToday) {
                         if (!s.isFresh) return false;
