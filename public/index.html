@@ -373,6 +373,7 @@
         "ОДІССЕЯ": { "19:40": 170 },
         "ОБСЕСІЯ": { "20:20": 111 }
     };
+
     const DEFAULT_DURATION = 120;
 
     function getEndTime(startTime, movieName) {
@@ -550,15 +551,11 @@
                 return; 
             }
             
-            // 🔥 Універсальна логіка статусу (для "Найближчі сеанси")
+            // 🔥 Логіка для "Найближчі сеанси" (тільки синій колір, без червоного)
             let itemClass = "";
             if (isToday) {
-                let isDangerZone = actualCurrentMinutes >= (endMinutes - 10) && actualCurrentMinutes <= (endMinutes + 10);
-                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes < (endMinutes - 10);
-
-                if (isDangerZone) {
-                    itemClass = "highlighted-danger"; 
-                } else if (isRunning) {
+                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 10);
+                if (isRunning) {
                     itemClass = "highlighted"; 
                 }
             }
@@ -602,15 +599,11 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
-                        // 🔥 Універсальна логіка статусу (для "Розклад по залах")
+                        // 🔥 Логіка для "Розклад по залах" (тільки синій колір, без червоного)
                         let itemClass = "";
                         if (isToday) {
-                            let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
-                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
-
-                            if (isDangerZone) {
-                                itemClass = "highlighted-danger"; 
-                            } else if (isRunning) {
+                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
+                            if (isRunning) {
                                 itemClass = "highlighted"; 
                             }
                         }
@@ -633,7 +626,7 @@
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
         
         endingSessions.forEach(s => {
-            // 🔥 Універсальна логіка статусу (для "Зараз тривають")
+            // 🔥 Логіка для "Зараз тривають" (залишається як було: і синій, і червоний)
             let itemClass = "";
             if (isToday) {
                 let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
