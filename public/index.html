@@ -242,17 +242,16 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* 🔥 Трохи розширено блок для часу, щоб помістилося "до 15:20" */
-        .session-time { font-weight: bold; width: 75px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
-        /* Час за замовчуванням чорний */
+        /* 🔥 Час за замовчуванням чорний */
         .time-main { color: var(--text); transition: color 0.2s; } 
         
-        /* Якщо синій фон - час синій */
+        /* 🔥 Якщо синій фон - час синій */
         .session-item.highlighted .time-main {
             color: var(--primary);
         }
-        /* Якщо червоний фон - час червоний */
+        /* 🔥 Якщо червоний фон - час червоний */
         .session-item.highlighted-danger .time-main,
         .session-item.highlighted-danger .session-sold {
             color: var(--danger);
@@ -554,6 +553,7 @@
             
             let highlightClass = "";
             if (isToday) {
+                // Якщо сеанс іде зараз (від початку і до кінця)
                 let isRunning = actualCurrentMinutes >= startMinutes && actualCurrentMinutes <= endMinutes;
                 if (isRunning) {
                     highlightClass = "highlighted";
@@ -642,11 +642,10 @@
                 }
             }
 
-            // 🔥 Додано "до " перед часом
             endingHtml += `
                 <div class="session-item ${itemClass}">
                     <div class="session-time">
-                        <span class="time-main">до ${s.endTimeStr}</span>
+                        <span class="time-main">${s.endTimeStr}</span>
                         <span class="session-time-end">поч. ${s.time}</span>
                     </div>
                     <div class="session-name">
