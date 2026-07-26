@@ -551,7 +551,6 @@
                 return; 
             }
             
-            // 🔥 Логіка для "Найближчі сеанси" (тільки синій колір, без червоного)
             let itemClass = "";
             if (isToday) {
                 let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 10);
@@ -589,7 +588,8 @@
                     s.startMinutes = startMinutes;
 
                     if (timeMode === 'now' && isToday) {
-                        if (actualCurrentMinutes > s.endMinutes) return false;
+                        // 🔥 ЗМІНЕНО: сеанс висить у списку ще 10 хвилин після закінчення
+                        if (actualCurrentMinutes > (s.endMinutes + 10)) return false;
                     } else if (timeMode === 'now' && !isToday) {
                         if (!s.isFresh) return false;
                     }
@@ -599,7 +599,6 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
-                        // 🔥 Логіка для "Розклад по залах" (тільки синій колір, без червоного)
                         let itemClass = "";
                         if (isToday) {
                             let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
@@ -626,7 +625,6 @@
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
         
         endingSessions.forEach(s => {
-            // 🔥 Логіка для "Зараз тривають" (залишається як було: і синій, і червоний)
             let itemClass = "";
             if (isToday) {
                 let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
