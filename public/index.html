@@ -216,7 +216,7 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* 🔥 Анімація для плавного мигання червоного фону */
+        /* Анімація для плавного мигання червоного фону */
         @keyframes pulse-danger-bg {
             0% { background-color: rgba(220, 53, 69, 0.03); }
             100% { background-color: rgba(220, 53, 69, 0.15); }
@@ -229,7 +229,6 @@
             border-radius: 8px;
             border-bottom: none;
             position: relative;
-            /* Вмикаємо анімацію: тривалість 1.5с, нескінченно, туди-сюди плавно */
             animation: pulse-danger-bg 1.5s infinite alternate ease-in-out;
         }
         .session-item.highlighted-danger::before {
@@ -552,7 +551,7 @@
 
             chronoHtml += `
                 <div class="session-item ${highlightClass}">
-                    <div class="session-time">${s.time}</div>
+                    <div class="session-time"><span class="time-main">${s.time}</span></div>
                     <div class="session-name">
                         <span class="session-hall">${s.hall}</span>
                         <span>${s.movieName}</span>
@@ -561,23 +560,53 @@
                 </div>`;
         });
 
+        // 🔥 РОЗКЛАД ПО ЗАЛАХ
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
                 let validSessions = sessions.filter(s => {
-                    if (timeMode === 'now' && !s.isFresh) return false;
+                    const endTimeStr = getEndTime(s.time, s.movieName);
+                    const [eh, em] = endTimeStr.split(':').map(Number);
+                    let endMinutes = eh * 60 + em;
+                    
+                    const [sh, sm] = s.time.split(':').map(Number);
+                    const startMinutes = sh * 60 + sm;
+                    
+                    if (endMinutes < startMinutes) endMinutes += 24 * 60; 
+
+                    s.endTimeStr = endTimeStr;
+                    s.endMinutes = endMinutes;
+                    s.startMinutes = startMinutes;
+
+                    if (timeMode === 'now' && isToday) {
+                        // Сеанс не зникає, поки він фізично не закінчиться
+                        if (actualCurrentMinutes > s.endMinutes) return false;
+                    } else if (timeMode === 'now' && !isToday) {
+                        if (!s.isFresh) return false;
+                    }
                     return true;
                 });
 
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
-                        const endTime = getEndTime(s.time, s.movieName);
+                        let itemClass = "";
+                        if (isToday) {
+                            let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
+                            let isRunning = actualCurrentMinutes >= s.startMinutes && actualCurrentMinutes < (s.endMinutes - 10);
+
+                            if (isDangerZone) {
+                                itemClass = "highlighted-danger"; 
+                            } else if (isRunning) {
+                                itemClass = "highlighted"; 
+                            }
+                        }
+
                         groupedHtml += `
-                            <div class="session-item">
+                            <div class="session-item ${itemClass}">
                                 <div class="session-time">
-                                    <span>${s.time}</span>
-                                    <span class="session-time-end">до ${endTime}</span>
+                                    <span class="time-main">${s.time}</span>
+                                    <span class="session-time-end">до ${s.endTimeStr}</span>
                                 </div>
                                 <div class="session-name"><span>${s.movieName}</span></div>
                                 <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
