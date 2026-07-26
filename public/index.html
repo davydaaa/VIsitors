@@ -242,14 +242,21 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* Динамічна зміна кольору акцентів при червоному фоні */
+        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        
+        /* 🔥 Час за замовчуванням чорний */
+        .time-main { color: var(--text); transition: color 0.2s; } 
+        
+        /* 🔥 Якщо синій фон - час синій */
+        .session-item.highlighted .time-main {
+            color: var(--primary);
+        }
+        /* 🔥 Якщо червоний фон - час червоний */
         .session-item.highlighted-danger .time-main,
         .session-item.highlighted-danger .session-sold {
             color: var(--danger);
         }
 
-        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
-        .time-main { color: var(--primary); transition: color 0.2s; }
         .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
         
         .session-name { 
@@ -545,8 +552,12 @@
             }
             
             let highlightClass = "";
-            if (isToday && (startMinutes - actualCurrentMinutes <= 10)) {
-                highlightClass = "highlighted";
+            if (isToday) {
+                // Якщо сеанс іде зараз (від початку і до кінця)
+                let isRunning = actualCurrentMinutes >= startMinutes && actualCurrentMinutes <= endMinutes;
+                if (isRunning) {
+                    highlightClass = "highlighted";
+                }
             }
 
             chronoHtml += `
@@ -560,7 +571,6 @@
                 </div>`;
         });
 
-        // 🔥 РОЗКЛАД ПО ЗАЛАХ
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
@@ -579,7 +589,6 @@
                     s.startMinutes = startMinutes;
 
                     if (timeMode === 'now' && isToday) {
-                        // Сеанс не зникає, поки він фізично не закінчиться
                         if (actualCurrentMinutes > s.endMinutes) return false;
                     } else if (timeMode === 'now' && !isToday) {
                         if (!s.isFresh) return false;
