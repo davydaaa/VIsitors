@@ -133,7 +133,6 @@
             box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
         }
 
-        /* Кнопка розгортання єдиної черги */
         #toggleUnifiedBtn {
             width: 100%;
             margin-top: 24px;
@@ -262,7 +261,8 @@
             border-radius: 8px 0 0 8px;
         }
 
-        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        /* 🔥 Виправлено: збільшено ширину до 80px, щоб "поч. 16:05" влазило в один рядок */
+        .session-time { font-weight: bold; width: 80px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
         /* Час за замовчуванням чорний */
         .time-main { color: var(--text); transition: color 0.2s; } 
@@ -277,7 +277,8 @@
             color: var(--danger);
         }
 
-        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* 🔥 Додано white-space: nowrap, щоб текст "поч. 16:05" не розбивався на два рядки */
+        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
         
         .session-name { 
             flex-grow: 1; 
@@ -339,7 +340,6 @@
             </div>
         </div>
 
-        <!-- Кнопка для розгортання спільної черги -->
         <button id="toggleUnifiedBtn" onclick="toggleUnifiedView()">⏱ Показати захід і вихід разом</button>
 
         <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
@@ -347,7 +347,6 @@
 
     <div id="results">
         
-        <!-- Новий блок: Єдина хронологія (Захід і вихід) -->
         <div class="card" id="unifiedCard" style="display: none; border: 2px solid var(--primary);">
             <div class="section-header">
                 <h2>Хронологія: Захід і вихід</h2>
@@ -557,7 +556,7 @@
         let filteredTotalBooked = 0; 
         let chronoHtml = ``;
         let endingSessions = [];
-        let unifiedEvents = []; // Для нової спільної черги
+        let unifiedEvents = []; 
         
         data.chronological.forEach(s => {
             if (!keepHall(s.hall)) return;
@@ -573,7 +572,6 @@
                 endMinutes += 24 * 60; 
             }
 
-            // Збираємо дані для СПІЛЬНОЇ ЧЕРГИ
             let keepStart = true;
             let keepEnd = true;
             if (timeMode === 'now' && isToday) {
@@ -639,7 +637,6 @@
                 </div>`;
         });
 
-        // 🔥 Рендер СПІЛЬНОЇ ЧЕРГИ
         unifiedEvents.sort((a, b) => a.evMins - b.evMins);
         let unifiedHtml = ``;
         unifiedEvents.forEach(ev => {
@@ -647,7 +644,7 @@
             let tLabel = ev.type === 'start' ? 'вхід' : 'вихід';
             unifiedHtml += `
                 <div class="session-item" style="background-color: var(--surface);">
-                    <div class="session-time" style="width: 65px;">
+                    <div class="session-time" style="width: 80px;">
                         <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
                         <span class="session-time-end">${tLabel}</span>
                     </div>
@@ -661,7 +658,6 @@
         if (unifiedHtml === '') unifiedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає подій для відображення.</div>`;
         document.getElementById('unifiedViewList').innerHTML = unifiedHtml;
 
-        // Розклад по залах
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
