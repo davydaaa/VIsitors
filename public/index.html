@@ -261,23 +261,19 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* 🔥 Виправлено: збільшено ширину до 65px, щоб "поч. 16:05" влазило в один рядок */
+        /* 🔥 Ширина повернута на 65px */
         .session-time { font-weight: bold; width: 65px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
-        /* Час за замовчуванням чорний */
         .time-main { color: var(--text); transition: color 0.2s; } 
         
-        /* Якщо синій фон - час синій */
         .session-item.highlighted .time-main {
             color: var(--primary);
         }
-        /* Якщо червоний фон - час червоний */
         .session-item.highlighted-danger .time-main,
         .session-item.highlighted-danger .session-sold {
             color: var(--danger);
         }
 
-        /* 🔥 Додано white-space: nowrap, щоб текст "поч. 16:05" не розбивався на два рядки */
         .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
         
         .session-name { 
@@ -404,7 +400,6 @@
         "ОДІССЕЯ": { "19:40": 170 },
         "ОБСЕСІЯ": { "20:20": 111 }
     };
-
     const DEFAULT_DURATION = 120;
 
     let isUnifiedOpen = false;
@@ -644,7 +639,7 @@
             let tLabel = ev.type === 'start' ? 'вхід' : 'вихід';
             unifiedHtml += `
                 <div class="session-item" style="background-color: var(--surface);">
-                    <div class="session-time" style="width: 65px;">
+                    <div class="session-time">
                         <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
                         <span class="session-time-end">${tLabel}</span>
                     </div>
@@ -694,11 +689,26 @@
                             }
                         }
 
+                        // 🔥 Змінена логіка часу залежно від статусу сеансу
+                        let timeContentHtml = "";
+                        if (itemClass === "highlighted") {
+                            // Якщо триває: зверху дрібним початок, знизу великим кінець
+                            timeContentHtml = `
+                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.time}</span>
+                                <span class="time-main">${s.endTimeStr}</span>
+                            `;
+                        } else {
+                            // Якщо не триває (ще не почався): стандартно
+                            timeContentHtml = `
+                                <span class="time-main">${s.time}</span>
+                                <span class="session-time-end">до ${s.endTimeStr}</span>
+                            `;
+                        }
+
                         groupedHtml += `
                             <div class="session-item ${itemClass}">
                                 <div class="session-time">
-                                    <span class="time-main">${s.time}</span>
-                                    <span class="session-time-end">до ${s.endTimeStr}</span>
+                                    ${timeContentHtml}
                                 </div>
                                 <div class="session-name"><span>${s.movieName}</span></div>
                                 <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
