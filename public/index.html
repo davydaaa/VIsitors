@@ -261,7 +261,7 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* 🔥 Ширина повернута на 65px */
+        /* Ширина 65px */
         .session-time { font-weight: bold; width: 65px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
         .time-main { color: var(--text); transition: color 0.2s; } 
@@ -400,6 +400,7 @@
         "ОДІССЕЯ": { "19:40": 170 },
         "ОБСЕСІЯ": { "20:20": 111 }
     };
+
     const DEFAULT_DURATION = 120;
 
     let isUnifiedOpen = false;
@@ -689,16 +690,13 @@
                             }
                         }
 
-                        // 🔥 Змінена логіка часу залежно від статусу сеансу
                         let timeContentHtml = "";
                         if (itemClass === "highlighted") {
-                            // Якщо триває: зверху дрібним початок, знизу великим кінець
                             timeContentHtml = `
                                 <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.time}</span>
                                 <span class="time-main">${s.endTimeStr}</span>
                             `;
                         } else {
-                            // Якщо не триває (ще не почався): стандартно
                             timeContentHtml = `
                                 <span class="time-main">${s.time}</span>
                                 <span class="session-time-end">до ${s.endTimeStr}</span>
@@ -734,11 +732,12 @@
                 }
             }
 
+            // 🔥 Змінено порядок: маленький "поч." зверху, великий час закінчення знизу
             endingHtml += `
                 <div class="session-item ${itemClass}">
                     <div class="session-time">
+                        <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.time}</span>
                         <span class="time-main">${s.endTimeStr}</span>
-                        <span class="session-time-end">поч. ${s.time}</span>
                     </div>
                     <div class="session-name">
                         <span class="session-hall">${s.hall}</span>
