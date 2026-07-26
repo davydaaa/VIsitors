@@ -242,7 +242,8 @@
             border-radius: 8px 0 0 8px;
         }
 
-        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        /* 🔥 Ширину збільшено до 95px, щоб "11:30-14:30" поміщалося в один рядок */
+        .session-time { font-weight: bold; width: 95px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; line-height: 1.2; }
         
         /* Час за замовчуванням чорний */
         .time-main { color: var(--text); transition: color 0.2s; } 
@@ -257,8 +258,6 @@
             color: var(--danger);
         }
 
-        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
-        
         .session-name { 
             flex-grow: 1; 
             padding: 0 12px; 
@@ -551,7 +550,6 @@
                 return; 
             }
             
-            // 🔥 Універсальна логіка статусу (для "Найближчі сеанси")
             let itemClass = "";
             if (isToday) {
                 let isDangerZone = actualCurrentMinutes >= (endMinutes - 10) && actualCurrentMinutes <= (endMinutes + 10);
@@ -564,9 +562,10 @@
                 }
             }
 
+            // 🔥 Формат "11:30-14:30"
             chronoHtml += `
                 <div class="session-item ${itemClass}">
-                    <div class="session-time"><span class="time-main">${s.time}</span></div>
+                    <div class="session-time"><span class="time-main">${s.time}-${endTimeStr}</span></div>
                     <div class="session-name">
                         <span class="session-hall">${s.hall}</span>
                         <span>${s.movieName}</span>
@@ -603,7 +602,6 @@
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
-                        // 🔥 Універсальна логіка статусу (для "Розклад по залах")
                         let itemClass = "";
                         if (isToday) {
                             let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
@@ -616,12 +614,10 @@
                             }
                         }
 
+                        // 🔥 Формат "11:30-14:30"
                         groupedHtml += `
                             <div class="session-item ${itemClass}">
-                                <div class="session-time">
-                                    <span class="time-main">${s.time}</span>
-                                    <span class="session-time-end">до ${s.endTimeStr}</span>
-                                </div>
+                                <div class="session-time"><span class="time-main">${s.time}-${s.endTimeStr}</span></div>
                                 <div class="session-name"><span>${s.movieName}</span></div>
                                 <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
                             </div>`;
@@ -634,8 +630,8 @@
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
         
         endingSessions.forEach(s => {
-            // 🔥 Універсальна логіка статусу (для "Зараз тривають")
             let itemClass = "";
+            
             if (isToday) {
                 let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
                 let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
@@ -647,12 +643,10 @@
                 }
             }
 
+            // 🔥 Формат "11:30-14:30"
             endingHtml += `
                 <div class="session-item ${itemClass}">
-                    <div class="session-time">
-                        <span class="time-main">${s.endTimeStr}</span>
-                        <span class="session-time-end">поч. ${s.time}</span>
-                    </div>
+                    <div class="session-time"><span class="time-main">${s.time}-${s.endTimeStr}</span></div>
                     <div class="session-name">
                         <span class="session-hall">${s.hall}</span>
                         <span>${s.movieName}</span>
