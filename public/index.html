@@ -16,6 +16,7 @@
             --primary: #0d6efd;
             --primary-hover: #0b5ed7;
             --warning: #fd7e14;
+            --danger: #dc3545; /* 🔥 Додано колір для "уваги" (червоний) */
             --border: #dee2e6;
             --radius: 12px;
         }
@@ -195,16 +196,15 @@
         }
         .session-item:last-child { border-bottom: none; }
         
-        /* 🔥 НОВИЙ КЛАС ДЛЯ ПІДСВІТКИ СЕАНСУ */
+        /* 🔥 Синій фон для нормального активного сеансу */
         .session-item.highlighted {
-            background-color: rgba(13, 110, 253, 0.06); /* дуже блідо-синій фон */
+            background-color: rgba(13, 110, 253, 0.06); 
             padding: 12px 16px;
             margin: 4px -16px;
             border-radius: 8px;
             border-bottom: none;
             position: relative;
         }
-        /* Синя смужка зліва для стилю */
         .session-item.highlighted::before {
             content: '';
             position: absolute;
@@ -213,6 +213,26 @@
             bottom: 0;
             width: 4px;
             background-color: var(--primary);
+            border-radius: 8px 0 0 8px;
+        }
+
+        /* 🔥 Червоний фон для сеансів, що закінчуються */
+        .session-item.highlighted-danger {
+            background-color: rgba(220, 53, 69, 0.06); 
+            padding: 12px 16px;
+            margin: 4px -16px;
+            border-radius: 8px;
+            border-bottom: none;
+            position: relative;
+        }
+        .session-item.highlighted-danger::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: var(--danger);
             border-radius: 8px 0 0 8px;
         }
 
@@ -493,7 +513,8 @@
                     endingSessions.push({
                         ...s,
                         endTimeStr: endTimeStr,
-                        endMinutes: endMinutes
+                        endMinutes: endMinutes,
+                        startMinutes: startMinutes // Зберігаємо час старту для підсвітки
                     });
                 }
             }
@@ -510,10 +531,9 @@
                 return; 
             }
             
-            // 🔥 ЛОГІКА ПІДСВІЧУВАННЯ СЕАНСУ
+            // Підсвітка для ХРОНОЛОГІЧНОГО списку (Найближчі сеанси)
             let highlightClass = "";
             if (isToday && (startMinutes - actualCurrentMinutes <= 10)) {
-                // Якщо сеанс починається через 10 хвилин або менше (або вже почався)
                 highlightClass = "highlighted";
             }
 
@@ -558,8 +578,25 @@
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
         
         endingSessions.forEach(s => {
+            // 🔥 ЛОГІКА ПІДСВІТКИ ДЛЯ "ЗАРАЗ ТРИВАЮТЬ"
+            let itemClass = "";
+            
+            if (isToday) {
+                // Перевіряємо чи сеанс зараз у зоні "уваги" (від 10 хв до кінця, і ще 10 хв після)
+                let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 10);
+                
+                // Перевіряємо чи сеанс просто йде нормально (від початку і до 10 хв перед кінцем)
+                let isRunning = actualCurrentMinutes >= s.startMinutes && actualCurrentMinutes < (s.endMinutes - 10);
+
+                if (isDangerZone) {
+                    itemClass = "highlighted-danger"; // Червоний
+                } else if (isRunning) {
+                    itemClass = "highlighted"; // Синій
+                }
+            }
+
             endingHtml += `
-                <div class="session-item">
+                <div class="session-item ${itemClass}">
                     <div class="session-time">
                         <span style="color: var(--primary);">${s.endTimeStr}</span>
                         <span class="session-time-end">поч. ${s.time}</span>
