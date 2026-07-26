@@ -242,8 +242,8 @@
             border-radius: 8px 0 0 8px;
         }
 
-        /* 🔥 Трохи розширено блок для часу, щоб помістилося "до 15:20" */
-        .session-time { font-weight: bold; width: 75px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        /* Повернено ширину 60px */
+        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
         
         /* Час за замовчуванням чорний */
         .time-main { color: var(--text); transition: color 0.2s; } 
@@ -642,11 +642,11 @@
                 }
             }
 
-            // 🔥 Додано "до " перед часом
+            // 🔥 Прибрано "до " перед часом
             endingHtml += `
                 <div class="session-item ${itemClass}">
                     <div class="session-time">
-                        <span class="time-main">до ${s.endTimeStr}</span>
+                        <span class="time-main">${s.endTimeStr}</span>
                         <span class="session-time-end">поч. ${s.time}</span>
                     </div>
                     <div class="session-name">
