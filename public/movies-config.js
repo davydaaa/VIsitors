@@ -28,7 +28,7 @@ const EXTRA_SESSIONS = [
         time: "15:55",
         movieName: "Історія Іграшок Табір",
         hall: "LUX 8",
-        duration: 101, // 2.5 години
+        duration: 91,
         sold: 22
     }
 ];
