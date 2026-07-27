@@ -378,7 +378,6 @@
     </div>
 </div>
 
-<!-- 🔥 ПІДКЛЮЧАЄМО КОНФІГ З ЗОВНІШНЬОГО ФАЙЛУ -->
 <script src="movies-config.js"></script>
 
 <script>
@@ -402,7 +401,6 @@
         }
     }
 
-    // Хелпер: обраховує старт, кінець у хвилинах та форматує рядок "HH:MM"
     function calculateTimes(session) {
         const [sh, sm] = session.displayTime.split(':').map(Number);
         const startMinutes = sh * 60 + sm;
@@ -416,8 +414,12 @@
         return { startMinutes, endMinutes, endTimeStr };
     }
 
+    // Встановлюємо сьогоднішню дату
     document.getElementById('datePicker').valueAsDate = new Date();
     let globalData = null; 
+
+    // 🔥 АВТОМАТИЧНЕ ЗАВАНТАЖЕННЯ ПРИ ВІДКРИТТІ СТОРІНКИ
+    fetchData();
 
     function onAllChange(e) {
         const hallCbs = document.querySelectorAll('.hall-cb');
@@ -466,19 +468,15 @@
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            // 🔥 ІНІЦІАЛІЗАЦІЯ ВИНЯТКІВ
-            // Одразу після отримання даних застосовуємо кастомний час і тривалість з файлу config
             const applyExceptions = (session) => {
                 let duration = MOVIE_DURATIONS[session.movieName] || DEFAULT_DURATION;
-                let displayTime = session.time; // Оригінальний час
+                let displayTime = session.time; 
                 
                 if (TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
                     let exc = TIME_EXCEPTIONS[session.movieName][session.time];
                     if (typeof exc === 'number') {
-                        // Підтримка старого формату (лише тривалість числом)
                         duration = exc;
                     } else if (typeof exc === 'object') {
-                        // Новий формат об'єкта
                         if (exc.duration) duration = exc.duration;
                         if (exc.newTime) displayTime = exc.newTime;
                     }
