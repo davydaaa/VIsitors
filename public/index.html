@@ -495,7 +495,10 @@
             let cachedSessions = [];
             try {
                 const stored = localStorage.getItem(cacheKey);
-                if (stored) cachedSessions = JSON.parse(stored);
+                if (stored) {
+                    // 🔥 ОЧИЩЕННЯ КЕШУ: Відкидаємо старі ручні події (extra_...), щоб вони не дублювались
+                    cachedSessions = JSON.parse(stored).filter(s => !String(s.id).startsWith('extra_'));
+                }
             } catch(e) {}
 
             const response = await fetch(`/api/tickets`, {
@@ -506,7 +509,6 @@
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            // ---> ІНЖЕКЦІЯ ДОДАТКОВИХ СЕАНСІВ <---
             if (!data.chronological) data.chronological = [];
             if (!data.grouped) data.grouped = {};
 
@@ -535,7 +537,6 @@
                     data.grouped[extra.hall].push(newSession);
                 });
 
-                // Сортування після додавання "ручних" подій
                 const sortByTime = (a, b) => {
                     const tA = a.time.split(':').map(Number);
                     const tB = b.time.split(':').map(Number);
@@ -553,10 +554,8 @@
                 let displayTime = session.time; 
                 
                 if (session.isExtra) {
-                    // Якщо це ручний сеанс, беремо його тривалість
                     duration = session.extraDuration;
                 } else {
-                    // Якщо це сеанс із сервера, перевіряємо винятки
                     duration = typeof MOVIE_DURATIONS !== 'undefined' && MOVIE_DURATIONS[session.movieName] ? MOVIE_DURATIONS[session.movieName] : 120;
                     
                     if (typeof TIME_EXCEPTIONS !== 'undefined' && TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
@@ -580,10 +579,13 @@
                 }
             }
 
+            // 🔥 ЗАХИСТ ВІД ДУБЛЮВАННЯ: При збереженні нового кешу ми ІГНОРУЄМО всі ручні сеанси
             if (data.chronological && data.chronological.length > 0) {
-                const slimCache = data.chronological.map(s => ({
-                    id: s.id, time: s.time, movieName: s.movieName, hall: s.hall
-                }));
+                const slimCache = data.chronological
+                    .filter(s => !s.isExtra && !String(s.id).startsWith('extra_'))
+                    .map(s => ({
+                        id: s.id, time: s.time, movieName: s.movieName, hall: s.hall
+                    }));
                 localStorage.setItem(cacheKey, JSON.stringify(slimCache));
             }
 
@@ -664,7 +666,7 @@
                     keepEnd = false;
                 }
             }
-            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0) || s.isExtra; // Ручні сеанси показуємо завжди, навіть якщо квитків 0
+            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0) || s.isExtra; 
             if (!(hideEmptyChrono && !hasTickets)) {
                 if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.displayTime, evMins: startMinutes });
                 if (keepEnd) unifiedEvents.push({ ...s, type: 'end', evTimeStr: endTimeStr, evMins: endMinutes });
