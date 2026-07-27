@@ -21,3 +21,14 @@ const TIME_EXCEPTIONS = {
         "20:20": { duration: 111 } 
     }
 };
+
+const EXTRA_SESSIONS = [
+    {
+        date: "2026-07-28", // Змініть на потрібну вам дату
+        time: "15:55",
+        movieName: "Історія Іграшок Табір",
+        hall: "LUX 8",
+        duration: 101, // 2.5 години
+        sold: 22
+    }
+];
