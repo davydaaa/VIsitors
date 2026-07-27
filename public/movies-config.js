@@ -27,7 +27,7 @@ const EXTRA_SESSIONS = [
         date: "2026-07-28", // Змініть на потрібну вам дату
         time: "15:55",
         movieName: "Історія Іграшок Табір",
-        hall: "LUX 8",
+        hall: "LUX 6",
         duration: 91,
         sold: 22
     }
