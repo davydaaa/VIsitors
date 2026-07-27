@@ -310,10 +310,11 @@
             <div>
                 <div class="filters-title">Відображення сеансів:</div>
                 <div class="time-toggle">
-                    <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="renderData()">
+                    <!-- 🔥 Додано saveFilters() -->
+                    <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="saveFilters(); renderData()">
                     <label for="timeNow">Від поточного часу</label>
                     
-                    <input type="radio" id="timeAll" name="timeMode" value="all" onchange="renderData()">
+                    <input type="radio" id="timeAll" name="timeMode" value="all" onchange="saveFilters(); renderData()">
                     <label for="timeAll">За весь день</label>
                 </div>
             </div>
@@ -357,7 +358,8 @@
             <div class="section-header">
                 <h2 id="chronoHeader">Найближчі сеанси</h2>
                 <label class="toggle-empty">
-                    <input type="checkbox" id="hideEmptyChrono" onchange="renderData()">
+                    <!-- 🔥 Додано saveFilters() -->
+                    <input type="checkbox" id="hideEmptyChrono" onchange="saveFilters(); renderData()">
                     <span class="toggle-empty-btn">Приховати порожні</span>
                 </label>
             </div>
@@ -381,6 +383,44 @@
 <script src="movies-config.js"></script>
 
 <script>
+    // 🔥 ФУНКЦІЇ ЗБЕРЕЖЕННЯ І ВІДНОВЛЕННЯ ФІЛЬТРІВ
+    function saveFilters() {
+        const filters = {
+            timeMode: document.querySelector('input[name="timeMode"]:checked').value,
+            hideEmpty: document.getElementById('hideEmptyChrono').checked,
+            halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
+            filterAll: document.getElementById('filterAll').checked
+        };
+        localStorage.setItem('relux_filters', JSON.stringify(filters));
+    }
+
+    function loadFilters() {
+        const saved = localStorage.getItem('relux_filters');
+        if (saved) {
+            try {
+                const filters = JSON.parse(saved);
+                
+                if (filters.timeMode === 'all') {
+                    document.getElementById('timeAll').checked = true;
+                } else {
+                    document.getElementById('timeNow').checked = true;
+                }
+                
+                document.getElementById('hideEmptyChrono').checked = !!filters.hideEmpty;
+                document.getElementById('filterAll').checked = !!filters.filterAll;
+                
+                const hallCbs = document.querySelectorAll('.hall-cb');
+                if (filters.halls && filters.halls.length === hallCbs.length) {
+                    hallCbs.forEach((cb, i) => {
+                        cb.checked = filters.halls[i];
+                    });
+                }
+            } catch(e) {
+                console.error("Помилка завантаження фільтрів", e);
+            }
+        }
+    }
+
     let isUnifiedOpen = false;
 
     function toggleUnifiedView() {
@@ -414,11 +454,14 @@
         return { startMinutes, endMinutes, endTimeStr };
     }
 
-    // Встановлюємо сьогоднішню дату
     document.getElementById('datePicker').valueAsDate = new Date();
+    
+    // 🔥 Відновлюємо фільтри до того, як завантажаться дані
+    loadFilters();
+    
     let globalData = null; 
 
-    // 🔥 АВТОМАТИЧНЕ ЗАВАНТАЖЕННЯ ПРИ ВІДКРИТТІ СТОРІНКИ
+    // Завантаження при відкритті
     fetchData();
 
     function onAllChange(e) {
@@ -428,6 +471,7 @@
         } else if (!Array.from(hallCbs).some(cb => cb.checked)) {
             e.target.checked = true;
         }
+        saveFilters(); // 🔥 Зберігаємо
         if (globalData) renderData();
     }
 
@@ -435,6 +479,7 @@
         const allCb = document.getElementById('filterAll');
         const anyChecked = Array.from(document.querySelectorAll('.hall-cb')).some(cb => cb.checked);
         allCb.checked = !anyChecked;
+        saveFilters(); // 🔥 Зберігаємо
         if (globalData) renderData();
     }
 
