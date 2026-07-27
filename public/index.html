@@ -378,27 +378,10 @@
     </div>
 </div>
 
+<!-- 🔥 ПІДКЛЮЧАЄМО КОНФІГ З ЗОВНІШНЬОГО ФАЙЛУ -->
+<script src="movies-config.js"></script>
+
 <script>
-    const MOVIE_DURATIONS = {
-        "ОДІССЕЯ": 180,
-        "АКАДЕМІЯ ЧАРІВНИКІВ": 120,
-        "ІСТОРІЯ ІГРАШОК 5": 105,
-        "ПОСІПАКИ І МОНСТРЯКИ": 95,
-        "ТЕСТ НА ТЕЩУ 2": 99,
-        "БРУДНІ ГРОШІ": 104,
-        "ПОКИ СМЕРТЬ НЕ РОЗЛУЧИТЬ НАС": 100,
-        "ОБСЕСІЯ": 105,
-        "ПРОБУДЖЕННЯ: ЧЕРНИЦЯ З БОРЛІ": 97
-        
-    };
-
-    const TIME_EXCEPTIONS = {
-        "ОДІССЕЯ": { "19:40": 170 },
-        "ОБСЕСІЯ": { "20:20": 111 }
-    };
-
-    const DEFAULT_DURATION = 120;
-
     let isUnifiedOpen = false;
 
     function toggleUnifiedView() {
@@ -419,17 +402,18 @@
         }
     }
 
-    function getEndTime(startTime, movieName) {
-        let duration = DEFAULT_DURATION;
-        if (TIME_EXCEPTIONS[movieName] && TIME_EXCEPTIONS[movieName][startTime]) {
-            duration = TIME_EXCEPTIONS[movieName][startTime];
-        } else if (MOVIE_DURATIONS[movieName]) {
-            duration = MOVIE_DURATIONS[movieName];
-        }
-        const [h, m] = startTime.split(':').map(Number);
-        const date = new Date();
-        date.setHours(h, m + duration, 0, 0);
-        return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    // Хелпер: обраховує старт, кінець у хвилинах та форматує рядок "HH:MM"
+    function calculateTimes(session) {
+        const [sh, sm] = session.displayTime.split(':').map(Number);
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = startMinutes + session.duration;
+        
+        const displayEndMins = endMinutes % (24 * 60);
+        const eh = Math.floor(displayEndMins / 60);
+        const em = displayEndMins % 60;
+        const endTimeStr = `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+        
+        return { startMinutes, endMinutes, endTimeStr };
     }
 
     document.getElementById('datePicker').valueAsDate = new Date();
@@ -481,6 +465,34 @@
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
+
+            // 🔥 ІНІЦІАЛІЗАЦІЯ ВИНЯТКІВ
+            // Одразу після отримання даних застосовуємо кастомний час і тривалість з файлу config
+            const applyExceptions = (session) => {
+                let duration = MOVIE_DURATIONS[session.movieName] || DEFAULT_DURATION;
+                let displayTime = session.time; // Оригінальний час
+                
+                if (TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
+                    let exc = TIME_EXCEPTIONS[session.movieName][session.time];
+                    if (typeof exc === 'number') {
+                        // Підтримка старого формату (лише тривалість числом)
+                        duration = exc;
+                    } else if (typeof exc === 'object') {
+                        // Новий формат об'єкта
+                        if (exc.duration) duration = exc.duration;
+                        if (exc.newTime) displayTime = exc.newTime;
+                    }
+                }
+                session.duration = duration;
+                session.displayTime = displayTime;
+            };
+
+            if (data.chronological) data.chronological.forEach(applyExceptions);
+            if (data.grouped) {
+                for (let hall in data.grouped) {
+                    data.grouped[hall].forEach(applyExceptions);
+                }
+            }
 
             if (data.chronological && data.chronological.length > 0) {
                 const slimCache = data.chronological.map(s => ({
@@ -553,16 +565,7 @@
         data.chronological.forEach(s => {
             if (!keepHall(s.hall)) return;
 
-            const endTimeStr = getEndTime(s.time, s.movieName);
-            const [eh, em] = endTimeStr.split(':').map(Number);
-            let endMinutes = eh * 60 + em;
-            
-            const [sh, sm] = s.time.split(':').map(Number);
-            const startMinutes = sh * 60 + sm;
-            
-            if (endMinutes < startMinutes) {
-                endMinutes += 24 * 60; 
-            }
+            const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
 
             let keepStart = true;
             let keepEnd = true;
@@ -577,13 +580,12 @@
             }
             let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
             if (!(hideEmptyChrono && !hasTickets)) {
-                if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.time, evMins: startMinutes });
+                if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.displayTime, evMins: startMinutes });
                 if (keepEnd) unifiedEvents.push({ ...s, type: 'end', evTimeStr: endTimeStr, evMins: endMinutes });
             }
 
             let keepForEnding = true;
             if (timeMode === 'now' && isToday) {
-                // 🔥 ЗАМІНЕНО: +10 на +5
                 if ((endMinutes + 5) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
                     keepForEnding = false;
                 }
@@ -613,7 +615,6 @@
             
             let itemClass = "";
             if (isToday) {
-                // 🔥 ЗАМІНЕНО: +10 на +5
                 let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 5);
                 if (isRunning) {
                     itemClass = "highlighted"; 
@@ -622,7 +623,7 @@
 
             chronoHtml += `
                 <div class="session-item ${itemClass}">
-                    <div class="session-time"><span class="time-main">${s.time}</span></div>
+                    <div class="session-time"><span class="time-main">${s.displayTime}</span></div>
                     <div class="session-name">
                         <span class="session-hall">${s.hall}</span>
                         <span>${s.movieName}</span>
@@ -638,7 +639,7 @@
             let tLabel = ev.type === 'start' ? 'вхід' : 'вихід';
             unifiedHtml += `
                 <div class="session-item" style="background-color: var(--surface);">
-                    <div class="session-time">
+                    <div class="session-time" style="width: 65px;">
                         <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
                         <span class="session-time-end">${tLabel}</span>
                     </div>
@@ -656,21 +657,12 @@
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
                 let validSessions = sessions.filter(s => {
-                    const endTimeStr = getEndTime(s.time, s.movieName);
-                    const [eh, em] = endTimeStr.split(':').map(Number);
-                    let endMinutes = eh * 60 + em;
-                    
-                    const [sh, sm] = s.time.split(':').map(Number);
-                    const startMinutes = sh * 60 + sm;
-                    
-                    if (endMinutes < startMinutes) endMinutes += 24 * 60; 
-
+                    const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
                     s.endTimeStr = endTimeStr;
                     s.endMinutes = endMinutes;
                     s.startMinutes = startMinutes;
 
                     if (timeMode === 'now' && isToday) {
-                        // 🔥 ЗАМІНЕНО: +10 на +5
                         if (actualCurrentMinutes > (s.endMinutes + 5)) return false;
                     } else if (timeMode === 'now' && !isToday) {
                         if (!s.isFresh) return false;
@@ -683,7 +675,6 @@
                     validSessions.forEach(s => {
                         let itemClass = "";
                         if (isToday) {
-                            // 🔥 ЗАМІНЕНО: +10 на +5
                             let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
                             let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
 
@@ -697,12 +688,12 @@
                         let timeContentHtml = "";
                         if (itemClass === "highlighted" || itemClass === "highlighted-danger") {
                             timeContentHtml = `
-                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.time}</span>
+                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
                                 <span class="time-main">${s.endTimeStr}</span>
                             `;
                         } else {
                             timeContentHtml = `
-                                <span class="time-main">${s.time}</span>
+                                <span class="time-main">${s.displayTime}</span>
                                 <span class="session-time-end">до ${s.endTimeStr}</span>
                             `;
                         }
@@ -726,7 +717,6 @@
         endingSessions.forEach(s => {
             let itemClass = "";
             if (isToday) {
-                // 🔥 ЗАМІНЕНО: +10 на +5
                 let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
                 let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
 
@@ -740,7 +730,7 @@
             endingHtml += `
                 <div class="session-item ${itemClass}">
                     <div class="session-time">
-                        <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.time}</span>
+                        <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
                         <span class="time-main">${s.endTimeStr}</span>
                     </div>
                     <div class="session-name">
