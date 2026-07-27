@@ -310,7 +310,6 @@
             <div>
                 <div class="filters-title">Відображення сеансів:</div>
                 <div class="time-toggle">
-                    <!-- 🔥 Додано saveFilters() -->
                     <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="saveFilters(); renderData()">
                     <label for="timeNow">Від поточного часу</label>
                     
@@ -358,7 +357,6 @@
             <div class="section-header">
                 <h2 id="chronoHeader">Найближчі сеанси</h2>
                 <label class="toggle-empty">
-                    <!-- 🔥 Додано saveFilters() -->
                     <input type="checkbox" id="hideEmptyChrono" onchange="saveFilters(); renderData()">
                     <span class="toggle-empty-btn">Приховати порожні</span>
                 </label>
@@ -383,7 +381,6 @@
 <script src="movies-config.js"></script>
 
 <script>
-    // 🔥 ФУНКЦІЇ ЗБЕРЕЖЕННЯ І ВІДНОВЛЕННЯ ФІЛЬТРІВ
     function saveFilters() {
         const filters = {
             timeMode: document.querySelector('input[name="timeMode"]:checked').value,
@@ -455,13 +452,9 @@
     }
 
     document.getElementById('datePicker').valueAsDate = new Date();
-    
-    // 🔥 Відновлюємо фільтри до того, як завантажаться дані
     loadFilters();
-    
     let globalData = null; 
 
-    // Завантаження при відкритті
     fetchData();
 
     function onAllChange(e) {
@@ -471,7 +464,7 @@
         } else if (!Array.from(hallCbs).some(cb => cb.checked)) {
             e.target.checked = true;
         }
-        saveFilters(); // 🔥 Зберігаємо
+        saveFilters();
         if (globalData) renderData();
     }
 
@@ -479,7 +472,7 @@
         const allCb = document.getElementById('filterAll');
         const anyChecked = Array.from(document.querySelectorAll('.hall-cb')).some(cb => cb.checked);
         allCb.checked = !anyChecked;
-        saveFilters(); // 🔥 Зберігаємо
+        saveFilters();
         if (globalData) renderData();
     }
 
@@ -513,17 +506,67 @@
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
+            // ---> ІНЖЕКЦІЯ ДОДАТКОВИХ СЕАНСІВ <---
+            if (!data.chronological) data.chronological = [];
+            if (!data.grouped) data.grouped = {};
+
+            if (typeof EXTRA_SESSIONS !== 'undefined' && Array.isArray(EXTRA_SESSIONS)) {
+                const currentDate = date;
+                const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
+                
+                todayExtras.forEach(extra => {
+                    const newSession = {
+                        id: 'extra_' + Math.random().toString(36).substr(2, 9),
+                        time: extra.time,
+                        movieName: extra.movieName,
+                        hall: extra.hall,
+                        sold: extra.sold || 0,
+                        booked: extra.booked || 0,
+                        isFresh: true,
+                        isExtra: true,
+                        extraDuration: extra.duration || 120
+                    };
+
+                    data.chronological.push(newSession);
+
+                    if (!data.grouped[extra.hall]) {
+                        data.grouped[extra.hall] = [];
+                    }
+                    data.grouped[extra.hall].push(newSession);
+                });
+
+                // Сортування після додавання "ручних" подій
+                const sortByTime = (a, b) => {
+                    const tA = a.time.split(':').map(Number);
+                    const tB = b.time.split(':').map(Number);
+                    return (tA[0] * 60 + tA[1]) - (tB[0] * 60 + tB[1]);
+                };
+                
+                data.chronological.sort(sortByTime);
+                for (let hall in data.grouped) {
+                    data.grouped[hall].sort(sortByTime);
+                }
+            }
+
             const applyExceptions = (session) => {
-                let duration = MOVIE_DURATIONS[session.movieName] || DEFAULT_DURATION;
+                let duration = 120;
                 let displayTime = session.time; 
                 
-                if (TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
-                    let exc = TIME_EXCEPTIONS[session.movieName][session.time];
-                    if (typeof exc === 'number') {
-                        duration = exc;
-                    } else if (typeof exc === 'object') {
-                        if (exc.duration) duration = exc.duration;
-                        if (exc.newTime) displayTime = exc.newTime;
+                if (session.isExtra) {
+                    // Якщо це ручний сеанс, беремо його тривалість
+                    duration = session.extraDuration;
+                } else {
+                    // Якщо це сеанс із сервера, перевіряємо винятки
+                    duration = typeof MOVIE_DURATIONS !== 'undefined' && MOVIE_DURATIONS[session.movieName] ? MOVIE_DURATIONS[session.movieName] : 120;
+                    
+                    if (typeof TIME_EXCEPTIONS !== 'undefined' && TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
+                        let exc = TIME_EXCEPTIONS[session.movieName][session.time];
+                        if (typeof exc === 'number') {
+                            duration = exc;
+                        } else if (typeof exc === 'object') {
+                            if (exc.duration) duration = exc.duration;
+                            if (exc.newTime) displayTime = exc.newTime;
+                        }
                     }
                 }
                 session.duration = duration;
@@ -621,7 +664,7 @@
                     keepEnd = false;
                 }
             }
-            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0);
+            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0) || s.isExtra; // Ручні сеанси показуємо завжди, навіть якщо квитків 0
             if (!(hideEmptyChrono && !hasTickets)) {
                 if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.displayTime, evMins: startMinutes });
                 if (keepEnd) unifiedEvents.push({ ...s, type: 'end', evTimeStr: endTimeStr, evMins: endMinutes });
@@ -645,7 +688,7 @@
                 }
             }
 
-            if (timeMode === 'now' && !s.isFresh) {
+            if (timeMode === 'now' && !s.isFresh && !s.isExtra) {
                 return; 
             }
 
@@ -708,7 +751,7 @@
                     if (timeMode === 'now' && isToday) {
                         if (actualCurrentMinutes > (s.endMinutes + 5)) return false;
                     } else if (timeMode === 'now' && !isToday) {
-                        if (!s.isFresh) return false;
+                        if (!s.isFresh && !s.isExtra) return false;
                     }
                     return true;
                 });
