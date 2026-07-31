@@ -35,5 +35,14 @@ const EXTRA_SESSIONS = [
         hall: "LUX 6",
         duration: 91,
         sold: 22
+    },
+    
+    {
+        date: "2026-08-02",
+        time: "16:00",
+        movieName: "ОРЕНДА",
+        hall: "LUX 6",
+        duration: 300,
+        sold: 16
     }
 ];
