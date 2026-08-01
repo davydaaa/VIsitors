@@ -76,8 +76,14 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             if (movie.offlineRental?.sessions) {
                 movie.offlineRental.sessions.forEach(session => {
                     const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
+                    
                     if (sessionMap.has(session.id)) {
-                        sessionMap.get(session.id).isFresh = true;
+                        // ВИПРАВЛЕННЯ: Якщо сеанс уже в пам'яті, ми не просто ставимо isFresh,
+                        // а й оновлюємо час на той, що зараз на офіційному сайті!
+                        const existingSession = sessionMap.get(session.id);
+                        existingSession.isFresh = true;
+                        existingSession.time = time;
+                        existingSession.movieName = movie.name; // На всякий випадок оновлюємо і назву
                     } else {
                         sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time, isFresh: true });
                     }
@@ -87,17 +93,14 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     }
 
     // 3. МИСЛИВЕЦЬ ЗА ПРИВИДАМИ: Видаляємо скасовані сеанси з кешу
-    // Отримуємо поточний час у Києві для точного порівняння
     const kyivNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kyiv"}));
     const [year, month, day] = targetDate.split('-').map(Number);
 
     for (let [id, session] of sessionMap.entries()) {
         if (!session.isFresh) {
             const [h, m] = session.time.split(':').map(Number);
-            // Створюємо дату сеансу в просторі київського часу
             const sessionDate = new Date(year, month - 1, day, h, m, 0);
 
-            // Якщо сеансу немає в API, але його час ще в майбутньому — це скасований сеанс
             if (sessionDate > kyivNow) {
                 sessionMap.delete(id);
             }
@@ -112,7 +115,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     const groupedByHall = {};
 
     for (const session of allSessions) {
-        // Ми запитуємо статус місць навіть для минулих сеансів
         const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
         const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
         
