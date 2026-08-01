@@ -26,7 +26,7 @@ const TIME_EXCEPTIONS = {
         "20:25": { duration: 140 }
     },
     "ЗАГНАНИЙ": {
-        "20:55": { duration: 114}
+        "20:55": { duration: 112}
     }
 };
 
