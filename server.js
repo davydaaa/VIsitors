@@ -56,11 +56,12 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     }
     const sessionMap = serverSessionCache[targetDate];
 
-    // Очищаємо статус "свіжості"
+    // Очищаємо статус "свіжості" перед новим парсингом
     for (let session of sessionMap.values()) {
         session.isFresh = false;
     }
 
+    // 1. Відновлюємо пам'ять з клієнта
     if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
         clientCachedSessions.forEach(cs => {
             if (!sessionMap.has(cs.id)) {
@@ -69,13 +70,14 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         });
     }
 
+    // 2. Свіжі дані від API (ті, що сайт віддає прямо зараз)
     if (scheduleResult.data?.fullMovies?.nodes) {
         scheduleResult.data.fullMovies.nodes.forEach(movie => {
             if (movie.offlineRental?.sessions) {
                 movie.offlineRental.sessions.forEach(session => {
                     const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
                     if (sessionMap.has(session.id)) {
-                        sessionMap.get(session.id).isFresh = true; 
+                        sessionMap.get(session.id).isFresh = true;
                     } else {
                         sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time, isFresh: true });
                     }
@@ -84,69 +86,57 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         });
     }
 
+    // 3. МИСЛИВЕЦЬ ЗА ПРИВИДАМИ: Видаляємо скасовані сеанси з кешу
+    // Отримуємо поточний час у Києві для точного порівняння
+    const kyivNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kyiv"}));
+    const [year, month, day] = targetDate.split('-').map(Number);
+
+    for (let [id, session] of sessionMap.entries()) {
+        if (!session.isFresh) {
+            const [h, m] = session.time.split(':').map(Number);
+            // Створюємо дату сеансу в просторі київського часу
+            const sessionDate = new Date(year, month - 1, day, h, m, 0);
+
+            // Якщо сеансу немає в API, але його час ще в майбутньому — це скасований сеанс
+            if (sessionDate > kyivNow) {
+                sessionMap.delete(id);
+            }
+        }
+    }
+
     let allSessions = Array.from(sessionMap.values());
     allSessions.sort((a, b) => a.time.localeCompare(b.time));
 
     let totalSold = 0;
-    let totalBooked = 0;
     const chronological = [];
     const groupedByHall = {};
 
-    // 🔥 СТАВИМО 25, щоб при 20-24 сеансах все вантажилось за 1 раз без пауз
-    const CHUNK_SIZE = 25; 
-    
-    for (let i = 0; i < allSessions.length; i += CHUNK_SIZE) {
-        const chunk = allSessions.slice(i, i + CHUNK_SIZE);
+    for (const session of allSessions) {
+        // Ми запитуємо статус місць навіть для минулих сеансів
+        const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
+        const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
         
-        // Запускаємо всі запити партії паралельно
-        await Promise.all(chunk.map(async (session) => {
-            try {
-                const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
-                const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
-                
-                sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
+        sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
 
-                const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
-                
-                let soldForSession = 0;
-                let bookedForSession = 0;
-                
-                rows.forEach(row => {
-                    row.seats.forEach(seat => { 
-                        if (seat.state === 'SOLD') soldForSession++; 
-                        else if (seat.state === 'BOOKED') bookedForSession++;
-                    });
-                });
+        const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
+        
+        let soldForSession = 0;
+        rows.forEach(row => {
+            row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
+        });
 
-                const sessionData = { 
-                    id: session.id, time: session.time, movieName: session.movieName, 
-                    sold: soldForSession, booked: bookedForSession, hall: hallName, isFresh: session.isFresh 
-                };
-                
-                chronological.push(sessionData);
-                
-                if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
-                groupedByHall[hallName].push(sessionData);
-                
-                totalSold += soldForSession;
-                totalBooked += bookedForSession;
-            } catch (err) {
-                console.error(`Помилка завантаження місць для сеансу ${session.id}:`, err);
-            }
-        }));
-
-        // Пауза спрацює ТІЛЬКИ якщо сеансів буде більше ніж 25
-        if (i + CHUNK_SIZE < allSessions.length) {
-            await delay(300);
-        }
+        const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
+        
+        chronological.push(sessionData);
+        
+        if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
+        groupedByHall[hallName].push(sessionData);
+        
+        totalSold += soldForSession;
+        await delay(300);
     }
 
-    chronological.sort((a, b) => a.time.localeCompare(b.time));
-    for (const hallName in groupedByHall) {
-        groupedByHall[hallName].sort((a, b) => a.time.localeCompare(b.time));
-    }
-
-    return { date: targetDate, total: totalSold, totalBooked: totalBooked, chronological, grouped: groupedByHall };
+    return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
 app.post('/api/tickets', async (req, res) => {
