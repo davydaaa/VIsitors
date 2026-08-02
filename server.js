@@ -56,7 +56,7 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     }
     const sessionMap = serverSessionCache[targetDate];
 
-    // Очищаємо статус "свіжості" перед новим парсингом
+    // Очищаємо статус "свіжості"
     for (let session of sessionMap.values()) {
         session.isFresh = false;
     }
@@ -70,7 +70,7 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         });
     }
 
-    // 2. Свіжі дані від API (ті, що сайт віддає прямо зараз)
+    // 2. Свіжі дані від API
     if (scheduleResult.data?.fullMovies?.nodes) {
         scheduleResult.data.fullMovies.nodes.forEach(movie => {
             if (movie.offlineRental?.sessions) {
@@ -78,12 +78,10 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
                     const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
                     
                     if (sessionMap.has(session.id)) {
-                        // ВИПРАВЛЕННЯ: Якщо сеанс уже в пам'яті, ми не просто ставимо isFresh,
-                        // а й оновлюємо час на той, що зараз на офіційному сайті!
                         const existingSession = sessionMap.get(session.id);
                         existingSession.isFresh = true;
                         existingSession.time = time;
-                        existingSession.movieName = movie.name; // На всякий випадок оновлюємо і назву
+                        existingSession.movieName = movie.name;
                     } else {
                         sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time, isFresh: true });
                     }
@@ -114,28 +112,52 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     const chronological = [];
     const groupedByHall = {};
 
-    for (const session of allSessions) {
-        const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
-        const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+    // 4. ТУРБО-РЕЖИМ: Перевірка місць пачками по 10 одночасно
+    const chunkSize = 10;
+    for (let i = 0; i < allSessions.length; i += chunkSize) {
+        const chunk = allSessions.slice(i, i + chunkSize);
         
-        sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
-
-        const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
-        
-        let soldForSession = 0;
-        rows.forEach(row => {
-            row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
+        // Відправляємо 10 запитів паралельно
+        const promises = chunk.map(async (session) => {
+            try {
+                const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
+                return { session, seatsResult };
+            } catch (error) {
+                console.error(`Помилка для сеансу ${session.id}:`, error.message);
+                return { session, seatsResult: null }; // Якщо помилка - йдемо далі, щоб не покласти весь додаток
+            }
         });
 
-        const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
-        
-        chronological.push(sessionData);
-        
-        if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
-        groupedByHall[hallName].push(sessionData);
-        
-        totalSold += soldForSession;
-        await delay(300);
+        // Чекаємо, поки всі 10 запитів виконаються
+        const results = await Promise.all(promises);
+
+        for (const { session, seatsResult } of results) {
+            if (!seatsResult) continue;
+
+            const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+            sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
+
+            const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
+            
+            let soldForSession = 0;
+            rows.forEach(row => {
+                row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
+            });
+
+            const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
+            
+            chronological.push(sessionData);
+            
+            if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
+            groupedByHall[hallName].push(sessionData);
+            
+            totalSold += soldForSession;
+        }
+
+        // Мікро-пауза між пачками, щоб API нас не заблокувало
+        if (i + chunkSize < allSessions.length) {
+            await delay(300);
+        }
     }
 
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
