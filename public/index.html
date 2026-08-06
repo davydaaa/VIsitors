@@ -3,300 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси RELUX</title>
-    
-    <link rel="icon" type="image/png" href="favicon.png">
-
+    <title>Продані квитки RELUX</title>
     <style>
-        :root {
-            --bg: #f8f9fa;
-            --surface: #ffffff;
-            --text: #212529;
-            --text-muted: #6c757d;
-            --primary: #0d6efd;
-            --primary-hover: #0b5ed7;
-            --warning: #fd7e14;
-            --danger: #dc3545; 
-            --border: #dee2e6;
-            --radius: 12px;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.5;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .card {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 24px;
-        }
+        :root { --bg: #f8f9fa; --surface: #ffffff; --text: #212529; --text-muted: #6c757d; --primary: #0d6efd; --primary-hover: #0b5ed7; --border: #dee2e6; --radius: 12px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 24px; }
         h1 { margin-top: 0; font-size: 1.5rem; }
         h2 { font-size: 1.25rem; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
-        
-        .controls {
-            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-        }
-        input[type="date"] {
-            padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
-            outline: none; transition: border-color 0.2s;
-        }
-        input[type="date"]:focus {
-            border-color: var(--primary);
-        }
-        button {
-            padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s;
-        }
-        button:hover { background: var(--primary-hover); }
+        .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        input[type="date"] { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; }
+        button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
         button:disabled { background: var(--text-muted); cursor: not-allowed; }
-        
-        .filters {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .time-toggle {
-            display: inline-flex;
-            background: #e9ecef;
-            border-radius: 8px;
-            padding: 4px;
-            width: fit-content;
-        }
+        .filters { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 20px; }
+        .time-toggle { display: inline-flex; background: #e9ecef; border-radius: 8px; padding: 4px; width: fit-content; }
         .time-toggle input { display: none; }
-        .time-toggle label {
-            padding: 8px 16px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            border-radius: 6px;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-        .time-toggle input:checked + label {
-            background: var(--surface);
-            color: var(--text);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .filters-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .checkbox-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .cb-label {
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
+        .time-toggle label { padding: 8px 16px; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: var(--text-muted); border-radius: 6px; }
+        .time-toggle input:checked + label { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .filters-title { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cb-label { cursor: pointer; }
         .cb-label input { display: none; }
-        .cb-button {
-            display: inline-block;
-            padding: 8px 16px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            transition: all 0.2s ease-in-out;
-            user-select: none;
-        }
-        .cb-label:hover input:not(:checked) + .cb-button {
-            border-color: #adb5bd;
-            color: var(--text);
-            background: var(--bg);
-        }
-        .cb-label input:checked + .cb-button {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
-        }
-
-        #toggleUnifiedBtn {
-            width: 100%;
-            margin-top: 24px;
-            padding: 12px;
-            text-align: center;
-            display: block;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            background: rgba(13, 110, 253, 0.05);
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        #toggleUnifiedBtn:hover {
-            background: var(--primary);
-            color: white;
-        }
-
-        .total-box {
-            font-size: 1.5rem; 
-            font-weight: bold; 
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-        }
-        .section-header h2 {
-            margin-top: 0; 
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-            line-height: 1; 
-        }
-        
-        .toggle-empty {
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            display: flex;
-            align-items: center;
-        }
+        .cb-button { display: inline-block; padding: 8px 16px; font-size: 0.95rem; font-weight: 500; color: var(--text-muted); background: #fff; border: 1px solid var(--border); border-radius: 20px; }
+        .cb-label input:checked + .cb-button { background: var(--primary); color: white; border-color: var(--primary); }
+        .total-box { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+        .section-header h2 { margin-top: 0; border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .toggle-empty { cursor: pointer; display: flex; align-items: center; }
         .toggle-empty input { display: none; }
-        .toggle-empty-btn {
-            display: inline-block;
-            padding: 6px 14px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            transition: all 0.2s ease-in-out;
-            user-select: none;
-            line-height: 1.5;
-        }
-        .toggle-empty:hover input:not(:checked) + .toggle-empty-btn {
-            border-color: #adb5bd;
-            color: var(--text);
-            background: var(--bg);
-        }
-        .toggle-empty input:checked + .toggle-empty-btn {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
-        }
-
-        .session-item {
-            display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
-        }
+        .toggle-empty-btn { display: inline-block; padding: 6px 14px; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); background: #fff; border: 1px solid var(--border); border-radius: 20px; }
+        .toggle-empty input:checked + .toggle-empty-btn { background: var(--primary); color: white; border-color: var(--primary); }
+        .session-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
         .session-item:last-child { border-bottom: none; }
-        
-        .session-item.highlighted {
-            background-color: rgba(13, 110, 253, 0.06); 
-            padding: 12px 16px;
-            margin: 4px -16px;
-            border-radius: 8px;
-            border-bottom: none;
-            position: relative;
-        }
-        .session-item.highlighted::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: var(--primary);
-            border-radius: 8px 0 0 8px;
-        }
-
-        @keyframes pulse-danger-bg {
-            0% { background-color: rgba(220, 53, 69, 0.03); }
-            100% { background-color: rgba(220, 53, 69, 0.15); }
-        }
-
-        .session-item.highlighted-danger {
-            padding: 12px 16px;
-            margin: 4px -16px;
-            border-radius: 8px;
-            border-bottom: none;
-            position: relative;
-            animation: pulse-danger-bg 1.5s infinite alternate ease-in-out;
-        }
-        .session-item.highlighted-danger::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: var(--danger);
-            border-radius: 8px 0 0 8px;
-        }
-
-        .session-time { font-weight: bold; width: 65px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
-        
-        .time-main { color: var(--text); transition: color 0.2s; } 
-        
-        .session-item.highlighted .time-main {
-            color: var(--primary);
-        }
-        .session-item.highlighted-danger .time-main,
-        .session-item.highlighted-danger .session-sold {
-            color: var(--danger);
-        }
-
-        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
-        
-        .session-name { 
-            flex-grow: 1; 
-            padding: 0 12px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        .session-hall { 
-            background: #e9ecef;
-            color: #495057;
-            font-size: 0.75rem; 
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 6px;
-            white-space: nowrap;
-            letter-spacing: 0.5px;
-        }
-        .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; text-align: right; transition: color 0.2s; }
-        .session-booked { color: var(--warning); font-size: 0.85em; font-weight: 500; margin-left: 4px; }
-        
+        .session-time { font-weight: bold; width: 60px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
+        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
+        .session-name { flex-grow: 1; padding: 0 12px; display: flex; align-items: center; gap: 10px; }
+        .session-hall { background: #e9ecef; color: #495057; font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
+        .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; }
         #loading { display: none; margin-top: 16px; color: var(--text-muted); }
         #results { display: none; }
+
+        /* Стилі для модального вікна Адмінки */
+        #adminModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
+        .admin-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 16px; width: 90%; max-width: 500px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .admin-modal h3 { margin-top: 0; color: var(--primary); }
+        .admin-btn { background: #198754; display: none; } /* Зелена кнопка, прихована за замовчуванням */
+        textarea { width: 100%; height: 250px; font-family: monospace; font-size: 13px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; margin-bottom: 15px; resize: vertical; }
+        .admin-pwd { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; margin-bottom: 20px; }
     </style>
 </head>
 <body>
+
+<!-- Модальне вікно адмінки -->
+<div id="adminModalOverlay">
+    <div class="admin-modal">
+        <h3>⚙️ Керування розкладом</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Тут можна налаштувати тривалість фільмів. Дані мають бути у форматі JSON.</p>
+        <textarea id="settingsInput"></textarea>
+        <input type="password" id="adminPwd" class="admin-pwd" placeholder="Секретний пароль">
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="closeAdmin()" style="background: var(--text-muted);">Скасувати</button>
+            <button onclick="saveAdminSettings()" style="background: #198754;">💾 Зберегти для всіх</button>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div class="card">
@@ -304,16 +74,16 @@
         <div class="controls">
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
+            <button id="adminBtn" class="admin-btn" onclick="openAdmin()">⚙️ Адмінка</button>
         </div>
 
         <div class="filters">
             <div>
                 <div class="filters-title">Відображення сеансів:</div>
                 <div class="time-toggle">
-                    <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="saveFilters(); renderData()">
+                    <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="renderData()">
                     <label for="timeNow">Від поточного часу</label>
-                    
-                    <input type="radio" id="timeAll" name="timeMode" value="all" onchange="saveFilters(); renderData()">
+                    <input type="radio" id="timeAll" name="timeMode" value="all" onchange="renderData()">
                     <label for="timeAll">За весь день</label>
                 </div>
             </div>
@@ -332,139 +102,115 @@
             </div>
         </div>
 
-        <button id="toggleUnifiedBtn" onclick="toggleUnifiedView()">⏱ Показати захід і вихід разом</button>
-
-        <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
+        <div id="loading">Завантаження... ⏳</div>
     </div>
 
     <div id="results">
-        
-        <div class="card" id="unifiedCard" style="display: none; border: 2px solid var(--primary);">
-            <div class="section-header">
-                <h2>Хронологія: Захід і вихід</h2>
-            </div>
-            <div id="unifiedViewList"></div>
-        </div>
-
         <div class="card">
-            <div class="total-box">
-                <span id="totalLabel">До кінця дня продано:</span> 
-                <span id="totalTickets">0</span>
-            </div>
+            <div class="total-box"><span id="totalLabel">До кінця дня продано:</span> <span id="totalTickets">0</span></div>
         </div>
-
         <div class="card">
-            <div class="section-header">
-                <h2 id="chronoHeader">Найближчі сеанси</h2>
-                <label class="toggle-empty">
-                    <input type="checkbox" id="hideEmptyChrono" onchange="saveFilters(); renderData()">
-                    <span class="toggle-empty-btn">Приховати порожні</span>
-                </label>
-            </div>
+            <div class="section-header"><h2>Хронологічний розклад</h2><label class="toggle-empty"><input type="checkbox" id="hideEmptyChrono" onchange="renderData()"><span class="toggle-empty-btn">Приховати порожні</span></label></div>
             <div id="chronologicalView"></div>
         </div>
-
-        <div class="card">
-            <h2>Розклад по залах</h2>
-            <div id="groupedView"></div>
-        </div>
-
-        <div class="card">
-            <div class="section-header">
-                <h2 id="endingHeader">Зараз тривають - Час виходу</h2>
-            </div>
-            <div id="endingView"></div>
-        </div>
+        <div class="card"><h2>Розклад по залах</h2><div id="groupedView"></div></div>
+        <div class="card"><div class="section-header"><h2>Черга закінчення сеансів</h2></div><div id="endingView"></div></div>
     </div>
 </div>
 
-<script src="movies-config.js"></script>
-
 <script>
-    function saveFilters() {
-        const filters = {
-            timeMode: document.querySelector('input[name="timeMode"]:checked').value,
-            hideEmpty: document.getElementById('hideEmptyChrono').checked,
-            halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
-            filterAll: document.getElementById('filterAll').checked
-        };
-        localStorage.setItem('relux_filters', JSON.stringify(filters));
+    // ==========================================
+    // ЛОГІКА АДМІНКИ ТА НАЛАШТУВАНЬ
+    // ==========================================
+    
+    // Перевіряємо, чи ввів ти секретне посилання: ?admin=1
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === '1') {
+        localStorage.setItem('isReluxAdmin', 'true'); // Назавжди запам'ятовуємо, що ти бос
+        window.history.replaceState({}, document.title, window.location.pathname); // Прибираємо код з адресної стрічки, щоб ніхто не підгледів
     }
 
-    function loadFilters() {
-        const saved = localStorage.getItem('relux_filters');
-        if (saved) {
-            try {
-                const filters = JSON.parse(saved);
-                
-                if (filters.timeMode === 'all') {
-                    document.getElementById('timeAll').checked = true;
-                } else {
-                    document.getElementById('timeNow').checked = true;
-                }
-                
-                document.getElementById('hideEmptyChrono').checked = !!filters.hideEmpty;
-                document.getElementById('filterAll').checked = !!filters.filterAll;
-                
-                const hallCbs = document.querySelectorAll('.hall-cb');
-                if (filters.halls && filters.halls.length === hallCbs.length) {
-                    hallCbs.forEach((cb, i) => {
-                        cb.checked = filters.halls[i];
-                    });
-                }
-            } catch(e) {
-                console.error("Помилка завантаження фільтрів", e);
-            }
+    if (localStorage.getItem('isReluxAdmin') === 'true') {
+        document.getElementById('adminBtn').style.display = 'inline-block';
+    }
+
+    // Дефолтні налаштування на випадок, якщо сервер порожній
+    let movieSettings = { durations: {}, exceptions: {} };
+    let settingsTime = 0;
+
+    // Спроба відновити налаштування з пам'яті браузера
+    try {
+        const stored = localStorage.getItem('relux_movie_settings');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            movieSettings = parsed.settings;
+            settingsTime = parsed.time;
+        }
+    } catch(e) {}
+
+    function openAdmin() {
+        document.getElementById('settingsInput').value = JSON.stringify(movieSettings, null, 4);
+        document.getElementById('adminModalOverlay').style.display = 'block';
+    }
+
+    function closeAdmin() {
+        document.getElementById('adminModalOverlay').style.display = 'none';
+        document.getElementById('adminPwd').value = '';
+    }
+
+    async function saveAdminSettings() {
+        try {
+            const rawJson = document.getElementById('settingsInput').value;
+            const pwd = document.getElementById('adminPwd').value;
+            const parsedSettings = JSON.parse(rawJson); // Перевіряємо, чи немає помилок у форматі JSON
+
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ secret: pwd, newSettings: parsedSettings })
+            });
+            
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+
+            alert('✅ Налаштування успішно збережено для всіх пристроїв!');
+            
+            // Оновлюємо локально
+            movieSettings = data.settings;
+            settingsTime = data.settingsTime;
+            localStorage.setItem('relux_movie_settings', JSON.stringify({ settings: movieSettings, time: settingsTime }));
+            
+            closeAdmin();
+            renderData(); // Перемальовуємо UI з новим часом
+        } catch (error) {
+            alert('❌ Помилка: ' + error.message);
         }
     }
 
-    let isUnifiedOpen = false;
-
-    function toggleUnifiedView() {
-        isUnifiedOpen = !isUnifiedOpen;
-        const btn = document.getElementById('toggleUnifiedBtn');
-        const card = document.getElementById('unifiedCard');
-        
-        if (isUnifiedOpen) {
-            btn.innerHTML = '⏱ Сховати захід і вихід';
-            btn.style.background = 'var(--primary)';
-            btn.style.color = 'white';
-            card.style.display = 'block';
-        } else {
-            btn.innerHTML = '⏱ Показати захід і вихід разом';
-            btn.style.background = 'rgba(13, 110, 253, 0.05)';
-            btn.style.color = 'var(--primary)';
-            card.style.display = 'none';
+    function getEndTime(startTime, movieName) {
+        let duration = 120; // Дефолт
+        if (movieSettings.exceptions && movieSettings.exceptions[movieName] && movieSettings.exceptions[movieName][startTime]) {
+            duration = movieSettings.exceptions[movieName][startTime];
+        } else if (movieSettings.durations && movieSettings.durations[movieName]) {
+            duration = movieSettings.durations[movieName];
         }
+        const [h, m] = startTime.split(':').map(Number);
+        const date = new Date();
+        date.setHours(h, m + duration, 0, 0);
+        return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
     }
 
-    function calculateTimes(session) {
-        const [sh, sm] = session.displayTime.split(':').map(Number);
-        const startMinutes = sh * 60 + sm;
-        const endMinutes = startMinutes + session.duration;
-        
-        const displayEndMins = endMinutes % (24 * 60);
-        const eh = Math.floor(displayEndMins / 60);
-        const em = displayEndMins % 60;
-        const endTimeStr = `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
-        
-        return { startMinutes, endMinutes, endTimeStr };
-    }
+    // ==========================================
+    // СТАНДАРТНА ЛОГІКА ДОДАТКА
+    // ==========================================
 
     document.getElementById('datePicker').valueAsDate = new Date();
-    loadFilters();
     let globalData = null; 
-
-    fetchData();
 
     function onAllChange(e) {
         const hallCbs = document.querySelectorAll('.hall-cb');
-        if (e.target.checked) {
-            hallCbs.forEach(cb => cb.checked = false);
-        } else if (!Array.from(hallCbs).some(cb => cb.checked)) {
-            e.target.checked = true;
-        }
-        saveFilters();
+        if (e.target.checked) hallCbs.forEach(cb => cb.checked = false);
+        else if (!Array.from(hallCbs).some(cb => cb.checked)) e.target.checked = true;
         if (globalData) renderData();
     }
 
@@ -472,143 +218,63 @@
         const allCb = document.getElementById('filterAll');
         const anyChecked = Array.from(document.querySelectorAll('.hall-cb')).some(cb => cb.checked);
         allCb.checked = !anyChecked;
-        saveFilters();
         if (globalData) renderData();
     }
 
     async function fetchData(isSilent = false) {
         const date = document.getElementById('datePicker').value;
         if (!date) return;
-
         const btn = document.getElementById('fetchBtn');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
 
-        if (!isSilent) {
-            btn.disabled = true;
-            loading.style.display = 'block';
-            results.style.display = 'none';
-        }
+        if (!isSilent) { btn.disabled = true; loading.style.display = 'block'; results.style.display = 'none'; }
         
         try {
             const cacheKey = `relux_schedule_${date}`;
             let cachedSessions = [];
-            try {
-                const stored = localStorage.getItem(cacheKey);
-                if (stored) {
-                    // 🔥 ОЧИЩЕННЯ КЕШУ: Відкидаємо старі ручні події (extra_...), щоб вони не дублювались
-                    cachedSessions = JSON.parse(stored).filter(s => !String(s.id).startsWith('extra_'));
-                }
-            } catch(e) {}
+            try { const stored = localStorage.getItem(cacheKey); if (stored) cachedSessions = JSON.parse(stored); } catch(e) {}
 
+            // ВІДПРАВЛЯЄМО не тільки кеш розкладу, а й наш кеш налаштувань!
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions })
+                body: JSON.stringify({ 
+                    date: date, 
+                    cachedSessions: cachedSessions,
+                    clientSettings: movieSettings,
+                    clientSettingsTime: settingsTime 
+                })
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            if (!data.chronological) data.chronological = [];
-            if (!data.grouped) data.grouped = {};
-
-            if (typeof EXTRA_SESSIONS !== 'undefined' && Array.isArray(EXTRA_SESSIONS)) {
-                const currentDate = date;
-                const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
-                
-                todayExtras.forEach(extra => {
-                    const newSession = {
-                        id: 'extra_' + Math.random().toString(36).substr(2, 9),
-                        time: extra.time,
-                        movieName: extra.movieName,
-                        hall: extra.hall,
-                        sold: extra.sold || 0,
-                        booked: extra.booked || 0,
-                        isFresh: true,
-                        isExtra: true,
-                        extraDuration: extra.duration || 120
-                    };
-
-                    data.chronological.push(newSession);
-
-                    if (!data.grouped[extra.hall]) {
-                        data.grouped[extra.hall] = [];
-                    }
-                    data.grouped[extra.hall].push(newSession);
-                });
-
-                const sortByTime = (a, b) => {
-                    const tA = a.time.split(':').map(Number);
-                    const tB = b.time.split(':').map(Number);
-                    return (tA[0] * 60 + tA[1]) - (tB[0] * 60 + tB[1]);
-                };
-                
-                data.chronological.sort(sortByTime);
-                for (let hall in data.grouped) {
-                    data.grouped[hall].sort(sortByTime);
-                }
+            // ОНОВЛЮЄМО НАЛАШТУВАННЯ З СЕРВЕРА (якщо хтось інший їх оновив або сервер надіслав свіжіші)
+            if (data.settings && data.settingsTime) {
+                movieSettings = data.settings;
+                settingsTime = data.settingsTime;
+                localStorage.setItem('relux_movie_settings', JSON.stringify({ settings: movieSettings, time: settingsTime }));
             }
 
-            const applyExceptions = (session) => {
-                let duration = 120;
-                let displayTime = session.time; 
-                
-                if (session.isExtra) {
-                    duration = session.extraDuration;
-                } else {
-                    duration = typeof MOVIE_DURATIONS !== 'undefined' && MOVIE_DURATIONS[session.movieName] ? MOVIE_DURATIONS[session.movieName] : 120;
-                    
-                    if (typeof TIME_EXCEPTIONS !== 'undefined' && TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
-                        let exc = TIME_EXCEPTIONS[session.movieName][session.time];
-                        if (typeof exc === 'number') {
-                            duration = exc;
-                        } else if (typeof exc === 'object') {
-                            if (exc.duration) duration = exc.duration;
-                            if (exc.newTime) displayTime = exc.newTime;
-                        }
-                    }
-                }
-                session.duration = duration;
-                session.displayTime = displayTime;
-            };
-
-            if (data.chronological) data.chronological.forEach(applyExceptions);
-            if (data.grouped) {
-                for (let hall in data.grouped) {
-                    data.grouped[hall].forEach(applyExceptions);
-                }
-            }
-
-            // 🔥 ЗАХИСТ ВІД ДУБЛЮВАННЯ: При збереженні нового кешу ми ІГНОРУЄМО всі ручні сеанси
             if (data.chronological && data.chronological.length > 0) {
-                const slimCache = data.chronological
-                    .filter(s => !s.isExtra && !String(s.id).startsWith('extra_'))
-                    .map(s => ({
-                        id: s.id, time: s.time, movieName: s.movieName, hall: s.hall
-                    }));
+                const slimCache = data.chronological.map(s => ({ id: s.id, time: s.time, movieName: s.movieName, hall: s.hall }));
                 localStorage.setItem(cacheKey, JSON.stringify(slimCache));
             }
 
             globalData = data; 
             renderData(); 
-            
             if (!isSilent) results.style.display = 'block';
         } catch (error) {
             if (!isSilent) alert("Помилка: " + error.message);
         } finally {
-            if (!isSilent) {
-                btn.disabled = false;
-                loading.style.display = 'none';
-            }
+            if (!isSilent) { btn.disabled = false; loading.style.display = 'none'; }
         }
     }
 
     setInterval(() => {
         const date = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
-        if (date === todayStr) {
-            fetchData(true);
-        }
+        if (date === todayStr) fetchData(true);
     }, 10 * 60 * 1000);
 
     function keepHall(hallName) {
@@ -619,21 +285,11 @@
         return selectedNums.some(num => hallName.includes(num));
     }
 
-    function getTicketsHtml(sold, booked) {
-        let html = `${sold} шт.`;
-        if (booked && booked > 0) {
-            html += `<span class="session-booked">(+${booked} бр.)</span>`;
-        }
-        return html;
-    }
-
     function renderData() {
         if (!globalData) return;
         const data = globalData;
-
         const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
         const hideEmptyChrono = document.getElementById('hideEmptyChrono').checked;
-        
         const selectedDate = document.getElementById('datePicker').value;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
         const isToday = (selectedDate === todayStr);
@@ -644,156 +300,41 @@
             actualCurrentMinutes = realNow.getHours() * 60 + realNow.getMinutes();
         }
 
-        let filteredTotalSold = 0;
-        let filteredTotalBooked = 0; 
+        let filteredTotal = 0;
         let chronoHtml = ``;
         let endingSessions = [];
-        let unifiedEvents = []; 
         
         data.chronological.forEach(s => {
             if (!keepHall(s.hall)) return;
-
-            const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
-
-            let keepStart = true;
-            let keepEnd = true;
-            if (timeMode === 'now' && isToday) {
-                if (startMinutes < actualCurrentMinutes) keepStart = false;
-                if (endMinutes < actualCurrentMinutes) keepEnd = false;
-            } else if (timeMode === 'now' && !isToday) {
-                if (!s.isFresh) {
-                    keepStart = false;
-                    keepEnd = false;
-                }
-            }
-            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0) || s.isExtra; 
-            if (!(hideEmptyChrono && !hasTickets)) {
-                if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.displayTime, evMins: startMinutes });
-                if (keepEnd) unifiedEvents.push({ ...s, type: 'end', evTimeStr: endTimeStr, evMins: endMinutes });
-            }
+            const endTimeStr = getEndTime(s.time, s.movieName);
+            const [eh, em] = endTimeStr.split(':').map(Number);
+            let endMinutes = eh * 60 + em;
+            const [sh, sm] = s.time.split(':').map(Number);
+            if (endMinutes < (sh * 60 + sm)) endMinutes += 24 * 60; 
 
             let keepForEnding = true;
-            if (timeMode === 'now' && isToday) {
-                if ((endMinutes + 5) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
-                    keepForEnding = false;
-                }
+            if (timeMode === 'now' && isToday && endMinutes < actualCurrentMinutes) keepForEnding = false;
+
+            if (keepForEnding && !(hideEmptyChrono && s.sold === 0)) {
+                endingSessions.push({ ...s, endTimeStr: endTimeStr, endMinutes: endMinutes });
             }
 
-            if (keepForEnding) {
-                if (!(hideEmptyChrono && !hasTickets)) {
-                    endingSessions.push({
-                        ...s,
-                        endTimeStr: endTimeStr,
-                        endMinutes: endMinutes,
-                        startMinutes: startMinutes
-                    });
-                }
-            }
-
-            if (timeMode === 'now' && !s.isFresh && !s.isExtra) {
-                return; 
-            }
-
-            filteredTotalSold += s.sold;
-            if (s.booked) filteredTotalBooked += s.booked;
+            if (timeMode === 'now' && !s.isFresh) return;
+            filteredTotal += s.sold;
+            if (hideEmptyChrono && s.sold === 0) return; 
             
-            if (hideEmptyChrono && !hasTickets) {
-                return; 
-            }
-            
-            let itemClass = "";
-            if (isToday) {
-                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 5);
-                if (isRunning) {
-                    itemClass = "highlighted"; 
-                }
-            }
-
-            chronoHtml += `
-                <div class="session-item ${itemClass}">
-                    <div class="session-time"><span class="time-main">${s.displayTime}</span></div>
-                    <div class="session-name">
-                        <span class="session-hall">${s.hall}</span>
-                        <span>${s.movieName}</span>
-                    </div>
-                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
-                </div>`;
+            chronoHtml += `<div class="session-item"><div class="session-time">${s.time}</div><div class="session-name"><span class="session-hall">${s.hall}</span><span>${s.movieName}</span></div><div class="session-sold">${s.sold} шт.</div></div>`;
         });
-
-        unifiedEvents.sort((a, b) => a.evMins - b.evMins);
-        let unifiedHtml = ``;
-        unifiedEvents.forEach(ev => {
-            let tColor = ev.type === 'start' ? 'var(--primary)' : 'var(--danger)';
-            let tLabel = ev.type === 'start' ? 'вхід' : 'вихід';
-            unifiedHtml += `
-                <div class="session-item" style="background-color: var(--surface);">
-                    <div class="session-time" style="width: 65px;">
-                        <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
-                        <span class="session-time-end">${tLabel}</span>
-                    </div>
-                    <div class="session-name">
-                        <span class="session-hall">${ev.hall}</span>
-                        <span>${ev.movieName}</span>
-                    </div>
-                    <div class="session-sold">${getTicketsHtml(ev.sold, ev.booked)}</div>
-                </div>`;
-        });
-        if (unifiedHtml === '') unifiedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає подій для відображення.</div>`;
-        document.getElementById('unifiedViewList').innerHTML = unifiedHtml;
 
         let groupedHtml = ``;
         for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
             if (keepHall(hallName)) {
-                let validSessions = sessions.filter(s => {
-                    const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
-                    s.endTimeStr = endTimeStr;
-                    s.endMinutes = endMinutes;
-                    s.startMinutes = startMinutes;
-
-                    if (timeMode === 'now' && isToday) {
-                        if (actualCurrentMinutes > (s.endMinutes + 5)) return false;
-                    } else if (timeMode === 'now' && !isToday) {
-                        if (!s.isFresh && !s.isExtra) return false;
-                    }
-                    return true;
-                });
-
+                let validSessions = sessions.filter(s => !(timeMode === 'now' && !s.isFresh));
                 if (validSessions.length > 0) {
                     groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
-                        let itemClass = "";
-                        if (isToday) {
-                            let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
-                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
-
-                            if (isDangerZone) {
-                                itemClass = "highlighted-danger"; 
-                            } else if (isRunning) {
-                                itemClass = "highlighted"; 
-                            }
-                        }
-
-                        let timeContentHtml = "";
-                        if (itemClass === "highlighted" || itemClass === "highlighted-danger") {
-                            timeContentHtml = `
-                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
-                                <span class="time-main">${s.endTimeStr}</span>
-                            `;
-                        } else {
-                            timeContentHtml = `
-                                <span class="time-main">${s.displayTime}</span>
-                                <span class="session-time-end">до ${s.endTimeStr}</span>
-                            `;
-                        }
-
-                        groupedHtml += `
-                            <div class="session-item ${itemClass}">
-                                <div class="session-time">
-                                    ${timeContentHtml}
-                                </div>
-                                <div class="session-name"><span>${s.movieName}</span></div>
-                                <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
-                            </div>`;
+                        const endTime = getEndTime(s.time, s.movieName);
+                        groupedHtml += `<div class="session-item"><div class="session-time"><span>${s.time}</span><span class="session-time-end">до ${endTime}</span></div><div class="session-name"><span>${s.movieName}</span></div><div class="session-sold">${s.sold} шт.</div></div>`;
                     });
                 }
             }
@@ -801,67 +342,10 @@
 
         let endingHtml = ``;
         endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
-        
         endingSessions.forEach(s => {
-            let itemClass = "";
-            if (isToday) {
-                let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
-                let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
-
-                if (isDangerZone) {
-                    itemClass = "highlighted-danger"; 
-                } else if (isRunning) {
-                    itemClass = "highlighted"; 
-                }
-            }
-
-            endingHtml += `
-                <div class="session-item ${itemClass}">
-                    <div class="session-time">
-                        <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
-                        <span class="time-main">${s.endTimeStr}</span>
-                    </div>
-                    <div class="session-name">
-                        <span class="session-hall">${s.hall}</span>
-                        <span>${s.movieName}</span>
-                    </div>
-                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
-                </div>`;
+            endingHtml += `<div class="session-item"><div class="session-time"><span style="color: var(--primary);">${s.endTimeStr}</span><span class="session-time-end">поч. ${s.time}</span></div><div class="session-name"><span class="session-hall">${s.hall}</span><span>${s.movieName}</span></div><div class="session-sold">${s.sold} шт.</div></div>`;
         });
 
-        if (chronoHtml === '') chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-        if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-        if (endingHtml === '') endingHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-
-        const totalLabel = document.getElementById('totalLabel');
-        const endingHeader = document.getElementById('endingHeader');
-        const chronoHeader = document.getElementById('chronoHeader'); 
-
-        if (timeMode === 'now') {
-            endingHeader.innerText = 'Зараз тривають - Час виходу';
-            chronoHeader.innerText = 'Найближчі сеанси';
-        } else {
-            endingHeader.innerText = 'Час закінчення';
-            chronoHeader.innerText = 'Сеанси';
-        }
-
-        if (timeMode === 'now' && isToday) {
-            totalLabel.innerText = 'До кінця дня продано:';
-        } else {
-            totalLabel.innerText = 'Загалом продано:';
-        }
-
-        let totalHtml = `${filteredTotalSold}`;
-        if (filteredTotalBooked > 0) {
-            totalHtml += ` <span style="color: var(--warning); font-size: 0.65em; vertical-align: middle;">(+${filteredTotalBooked} бронь)</span>`;
-        }
-        document.getElementById('totalTickets').innerHTML = totalHtml;
-        
-        document.getElementById('chronologicalView').innerHTML = chronoHtml;
-        document.getElementById('groupedView').innerHTML = groupedHtml;
-        document.getElementById('endingView').innerHTML = endingHtml;
-    }
-</script>
-
-</body>
-</html>
+        if (chronoHtml === '') chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів.</div>`;
+        if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів.</div>`;
+        if (endingHtml === '') endingHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів.</
