@@ -117,18 +117,16 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     for (let i = 0; i < allSessions.length; i += chunkSize) {
         const chunk = allSessions.slice(i, i + chunkSize);
         
-        // Відправляємо 10 запитів паралельно
         const promises = chunk.map(async (session) => {
             try {
                 const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
                 return { session, seatsResult };
             } catch (error) {
                 console.error(`Помилка для сеансу ${session.id}:`, error.message);
-                return { session, seatsResult: null }; // Якщо помилка - йдемо далі, щоб не покласти весь додаток
+                return { session, seatsResult: null }; 
             }
         });
 
-        // Чекаємо, поки всі 10 запитів виконаються
         const results = await Promise.all(promises);
 
         for (const { session, seatsResult } of results) {
@@ -141,7 +139,12 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             
             let soldForSession = 0;
             rows.forEach(row => {
-                row.seats.forEach(seat => { if (seat.state === 'SOLD') soldForSession++; });
+                row.seats.forEach(seat => { 
+                    // ВИПРАВЛЕННЯ: Тепер рахуємо і продані, і заброньовані місця
+                    if (seat.state === 'SOLD' || seat.state === 'BOOKED' || seat.state === 'RESERVED') { 
+                        soldForSession++; 
+                    } 
+                });
             });
 
             const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
@@ -154,7 +157,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             totalSold += soldForSession;
         }
 
-        // Мікро-пауза між пачками, щоб API нас не заблокувало
         if (i + chunkSize < allSessions.length) {
             await delay(300);
         }
