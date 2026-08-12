@@ -56,12 +56,10 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     }
     const sessionMap = serverSessionCache[targetDate];
 
-    // Очищаємо статус "свіжості"
     for (let session of sessionMap.values()) {
         session.isFresh = false;
     }
 
-    // 1. Відновлюємо пам'ять з клієнта
     if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
         clientCachedSessions.forEach(cs => {
             if (!sessionMap.has(cs.id)) {
@@ -70,7 +68,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         });
     }
 
-    // 2. Свіжі дані від API
     if (scheduleResult.data?.fullMovies?.nodes) {
         scheduleResult.data.fullMovies.nodes.forEach(movie => {
             if (movie.offlineRental?.sessions) {
@@ -90,7 +87,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
         });
     }
 
-    // 3. МИСЛИВЕЦЬ ЗА ПРИВИДАМИ: Видаляємо скасовані сеанси з кешу
     const kyivNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kyiv"}));
     const [year, month, day] = targetDate.split('-').map(Number);
 
@@ -112,7 +108,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     const chronological = [];
     const groupedByHall = {};
 
-    // 4. ТУРБО-РЕЖИМ: Перевірка місць пачками по 10 одночасно
     const chunkSize = 10;
     for (let i = 0; i < allSessions.length; i += chunkSize) {
         const chunk = allSessions.slice(i, i + chunkSize);
@@ -138,16 +133,28 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
             
             let soldForSession = 0;
+            let bookedForSession = 0; // Змінна для підрахунку броні
+            
             rows.forEach(row => {
                 row.seats.forEach(seat => { 
-                    // ВИПРАВЛЕННЯ: Тепер рахуємо і продані, і заброньовані місця
-                    if (seat.state === 'SOLD' || seat.state === 'BOOKED' || seat.state === 'RESERVED') { 
-                        soldForSession++; 
-                    } 
+                    if (seat.state === 'SOLD') {
+                        soldForSession++;
+                    } else if (seat.state === 'BOOKED' || seat.state === 'RESERVED') {
+                        bookedForSession++;
+                    }
                 });
             });
 
-            const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, hall: hallName, isFresh: session.isFresh };
+            // Відправляємо booked окремим параметром
+            const sessionData = { 
+                id: session.id, 
+                time: session.time, 
+                movieName: session.movieName, 
+                sold: soldForSession, 
+                booked: bookedForSession, 
+                hall: hallName, 
+                isFresh: session.isFresh 
+            };
             
             chronological.push(sessionData);
             
