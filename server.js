@@ -33,15 +33,8 @@ query sessionById($id: ID!) {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchGraphQL(url, query, variables) {
-    const response = await fetch(url, {
-        method: "POST", headers, body: JSON.stringify({ query, variables })
-    });
-    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-    return response.json();
-}
-
 const serverSessionCache = {};
+let globalConfig = { movieDurations: {}, extraSessions: [] };
 
 async function getTicketsReport(targetDate, clientCachedSessions) {
     const startTime = `${targetDate}T00:00:00.000Z`;
@@ -117,7 +110,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
                 const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
                 return { session, seatsResult };
             } catch (error) {
-                console.error(`Помилка для сеансу ${session.id}:`, error.message);
                 return { session, seatsResult: null }; 
             }
         });
@@ -133,29 +125,16 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
             
             let soldForSession = 0;
-            let bookedForSession = 0; // Змінна для підрахунку броні
+            let bookedForSession = 0; 
             
             rows.forEach(row => {
                 row.seats.forEach(seat => { 
-                    if (seat.state === 'SOLD') {
-                        soldForSession++;
-                    } else if (seat.state === 'BOOKED' || seat.state === 'RESERVED') {
-                        bookedForSession++;
-                    }
+                    if (seat.state === 'SOLD') soldForSession++;
+                    else if (seat.state === 'BOOKED' || seat.state === 'RESERVED') bookedForSession++;
                 });
             });
 
-            // Відправляємо booked окремим параметром
-            const sessionData = { 
-                id: session.id, 
-                time: session.time, 
-                movieName: session.movieName, 
-                sold: soldForSession, 
-                booked: bookedForSession, 
-                hall: hallName, 
-                isFresh: session.isFresh 
-            };
-            
+            const sessionData = { id: session.id, time: session.time, movieName: session.movieName, sold: soldForSession, booked: bookedForSession, hall: hallName, isFresh: session.isFresh };
             chronological.push(sessionData);
             
             if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
@@ -164,23 +143,30 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             totalSold += soldForSession;
         }
 
-        if (i + chunkSize < allSessions.length) {
-            await delay(300);
-        }
+        if (i + chunkSize < allSessions.length) await delay(300);
     }
 
-    return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
+    return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall, config: globalConfig };
 }
+
+// === НОВИЙ МАРШРУТ ДЛЯ АДМІНКИ ===
+app.get(['/admin', '/admin/'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.post('/api/tickets', async (req, res) => {
     try {
-        const { date, cachedSessions } = req.body;
+        const { date, cachedSessions, adminConfig } = req.body;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
+        if (adminConfig && adminConfig.pin === '7777') {
+            globalConfig.movieDurations = adminConfig.movieDurations || {};
+            globalConfig.extraSessions = adminConfig.extraSessions || [];
+        }
+
         const data = await getTicketsReport(date, cachedSessions);
         res.json(data);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Помилка при зборі даних" });
     }
 });
@@ -193,7 +179,6 @@ app.get('/api/tickets', async (req, res) => {
         const data = await getTicketsReport(date, []);
         res.json(data);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Помилка при зборі даних" });
     }
 });
