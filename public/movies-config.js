@@ -39,7 +39,7 @@ const TIME_EXCEPTIONS = {
     },
 
     "КУЗЬМА: СТРАШНО ВЕСЕЛИЙ" : {
-        "20:20": { duration: 134} 
+        "20:20": { duration: 133} 
     }
 };
 
