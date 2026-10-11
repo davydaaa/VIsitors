@@ -45,11 +45,11 @@
         .controls {
             display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
         }
-        input[type="date"] {
+        input[type="date"], select {
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
-            outline: none; transition: border-color 0.2s;
+            outline: none; transition: border-color 0.2s; background: var(--surface); color: var(--text);
         }
-        input[type="date"]:focus {
+        input[type="date"]:focus, select:focus {
             border-color: var(--primary);
         }
         button {
@@ -300,8 +300,14 @@
 
 <div class="container">
     <div class="card">
-        <h1>Обрати дату</h1>
+        <h1>Обрати дату та локацію</h1>
         <div class="controls">
+            <!-- ТУТ ПОТРІБНО ВСТАВИТИ ID ДЛЯ ФОРУМУ ТА КІНГ КРОСУ -->
+            <select id="cinemaSelect" onchange="onCinemaChange()">
+                <option value="Z2lkOi8vY2luZW1hLzEz">Львів (RE'LUX)</option>
+                <option value="ВСТАВТЕ_ТУТ_ID_FORUM">Львів (Forum)</option>
+                <option value="ВСТАВТЕ_ТУТ_ID_KING_CROSS">Львів (King Cross)</option>
+            </select>
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
@@ -383,6 +389,7 @@
 <script>
     function saveFilters() {
         const filters = {
+            cinemaId: document.getElementById('cinemaSelect').value,
             timeMode: document.querySelector('input[name="timeMode"]:checked').value,
             hideEmpty: document.getElementById('hideEmptyChrono').checked,
             halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
@@ -397,6 +404,13 @@
             try {
                 const filters = JSON.parse(saved);
                 
+                if (filters.cinemaId) {
+                    const sel = document.getElementById('cinemaSelect');
+                    if (Array.from(sel.options).some(o => o.value === filters.cinemaId)) {
+                        sel.value = filters.cinemaId;
+                    }
+                }
+
                 if (filters.timeMode === 'all') {
                     document.getElementById('timeAll').checked = true;
                 } else {
@@ -416,6 +430,17 @@
                 console.error("Помилка завантаження фільтрів", e);
             }
         }
+    }
+
+    function onCinemaChange() {
+        saveFilters();
+        globalData = null;
+        document.getElementById('chronologicalView').innerHTML = '';
+        document.getElementById('groupedView').innerHTML = '';
+        document.getElementById('endingView').innerHTML = '';
+        document.getElementById('unifiedViewList').innerHTML = '';
+        document.getElementById('totalTickets').innerText = '0';
+        fetchData();
     }
 
     let isUnifiedOpen = false;
@@ -478,7 +503,8 @@
 
     async function fetchData(isSilent = false) {
         const date = document.getElementById('datePicker').value;
-        if (!date) return;
+        const cinemaId = document.getElementById('cinemaSelect').value;
+        if (!date || !cinemaId) return;
 
         const btn = document.getElementById('fetchBtn');
         const loading = document.getElementById('loading');
@@ -491,12 +517,11 @@
         }
         
         try {
-            const cacheKey = `relux_schedule_${date}`;
+            const cacheKey = `relux_schedule_${cinemaId}_${date}`;
             let cachedSessions = [];
             try {
                 const stored = localStorage.getItem(cacheKey);
                 if (stored) {
-                    // 🔥 ОЧИЩЕННЯ КЕШУ: Відкидаємо старі ручні події (extra_...), щоб вони не дублювались
                     cachedSessions = JSON.parse(stored).filter(s => !String(s.id).startsWith('extra_'));
                 }
             } catch(e) {}
@@ -504,7 +529,7 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions })
+                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: cinemaId })
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
@@ -579,7 +604,6 @@
                 }
             }
 
-            // 🔥 ЗАХИСТ ВІД ДУБЛЮВАННЯ: При збереженні нового кешу ми ІГНОРУЄМО всі ручні сеанси
             if (data.chronological && data.chronological.length > 0) {
                 const slimCache = data.chronological
                     .filter(s => !s.isExtra && !String(s.id).startsWith('extra_'))
