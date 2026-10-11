@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси RELUX</title>
+    <title>Сеанси</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
 
@@ -385,21 +385,17 @@
     // ЛОГІКА МАРШРУТИЗАЦІЇ (URL -> Cinema ID)
     // ==========================================
     const urlPath = window.location.pathname.replace(/\/$/, ""); 
-    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // RE'LUX за замовчуванням
+    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // RE'LUX
     let cinemaName = "RE'LUX";
 
-    // Якщо в адресі /forum - ставимо ID Форуму
     if (urlPath === '/forum') {
         currentCinemaId = "Z2lkOi8vY2luZW1hLzU=";
         cinemaName = "Forum";
-    } 
-    // Якщо в адресі /kk - ставимо ID Кінг Кросу
-    else if (urlPath === '/kk') {
+    } else if (urlPath === '/kk') {
         currentCinemaId = "Z2lkOi8vY2luZW1hLzY=";
         cinemaName = "King Cross";
     }
 
-    // Змінюємо заголовок сторінки залежно від кінотеатру
     document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('mainTitle').innerText = `Обрати дату (\${cinemaName})`;
         document.title = `Сеанси \${cinemaName}`;
@@ -516,7 +512,7 @@
         }
         
         try {
-            // Кеш на клієнті теж ізольований по ID кінотеатру!
+            // Кеш ізольований для кожного кінотеатру!
             const cacheKey = `relux_schedule_${currentCinemaId}_${date}`;
             let cachedSessions = [];
             try {
@@ -529,7 +525,6 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // Передаємо currentCinemaId на сервер
                 body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: currentCinemaId })
             });
             const data = await response.json();
@@ -564,8 +559,8 @@
                 });
 
                 const sortByTime = (a, b) => {
-                    const tA = a.time.split(':').map(Number);
-                    const tB = b.time.split(':').map(Number);
+                    const tA = (a.time || "00:00").split(':').map(Number);
+                    const tB = (b.time || "00:00").split(':').map(Number);
                     return (tA[0] * 60 + tA[1]) - (tB[0] * 60 + tB[1]);
                 };
                 
@@ -577,7 +572,7 @@
 
             const applyExceptions = (session) => {
                 let duration = 120;
-                let displayTime = session.time; 
+                let displayTime = session.time || "00:00"; 
                 
                 if (session.isExtra) {
                     duration = session.extraDuration;
