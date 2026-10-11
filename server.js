@@ -50,7 +50,7 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
         cinemaId: cinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    const cacheKey = `${targetDate}_${cinemaId}`; // Кеш тепер залежить і від кінотеатру
+    const cacheKey = `${targetDate}_${cinemaId}`;
     if (!serverSessionCache[cacheKey]) {
         serverSessionCache[cacheKey] = new Map();
     }
@@ -133,7 +133,7 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
             const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
             
             let soldForSession = 0;
-            let bookedForSession = 0;
+            let bookedForSession = 0; 
             
             rows.forEach(row => {
                 row.seats.forEach(seat => { 
