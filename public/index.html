@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси</title>
+    <title>Сеанси RELUX</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
 
@@ -45,11 +45,11 @@
         .controls {
             display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
         }
-        input[type="date"] {
+        input[type="date"], select {
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
-            outline: none; transition: border-color 0.2s;
+            outline: none; transition: border-color 0.2s; background: var(--surface); color: var(--text);
         }
-        input[type="date"]:focus {
+        input[type="date"]:focus, select:focus {
             border-color: var(--primary);
         }
         button {
@@ -300,8 +300,14 @@
 
 <div class="container">
     <div class="card">
-        <h1 id="mainTitle">Обрати дату</h1>
+        <h1>Обрати дату</h1>
         <div class="controls">
+            <!-- ВИПАДАЮЧИЙ СПИСОК КІНОТЕАТРІВ -->
+            <select id="cinemaSelect" onchange="onCinemaChange()" style="font-weight: 600;">
+                <option value="relux">Львів (RE'LUX)</option>
+                <option value="forum">Львів (Forum)</option>
+                <option value="kk">Львів (King Cross)</option>
+            </select>
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
@@ -381,29 +387,9 @@
 <script src="movies-config.js"></script>
 
 <script>
-    // === ЛОГІКА РОУТИНГУ (ВИЗНАЧЕННЯ КІНОТЕАТРУ З URL) ===
-    const urlPath = window.location.pathname.replace(/\/$/, ""); 
-    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // RE'LUX за замовчуванням
-    let cinemaName = "RE'LUX";
-
-    if (urlPath === '/forum') {
-        currentCinemaId = "Z2lkOi8vY2luZW1hLzU=";
-        cinemaName = "Forum";
-    } else if (urlPath === '/kk') {
-        currentCinemaId = "Z2lkOi8vY2luZW1hLzY=";
-        cinemaName = "King Cross";
-    }
-
-    // Встановлюємо правильні заголовки
-    document.addEventListener("DOMContentLoaded", () => {
-        const titleEl = document.getElementById('mainTitle');
-        if (titleEl) titleEl.innerText = `Обрати дату (\${cinemaName})`;
-        document.title = `Сеанси \${cinemaName}`;
-    });
-    // ==========================================
-
     function saveFilters() {
         const filters = {
+            cinema: document.getElementById('cinemaSelect').value,
             timeMode: document.querySelector('input[name="timeMode"]:checked').value,
             hideEmpty: document.getElementById('hideEmptyChrono').checked,
             halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
@@ -418,6 +404,13 @@
             try {
                 const filters = JSON.parse(saved);
                 
+                if (filters.cinema) {
+                    const sel = document.getElementById('cinemaSelect');
+                    if (Array.from(sel.options).some(o => o.value === filters.cinema)) {
+                        sel.value = filters.cinema;
+                    }
+                }
+
                 if (filters.timeMode === 'all') {
                     document.getElementById('timeAll').checked = true;
                 } else {
@@ -437,6 +430,17 @@
                 console.error("Помилка завантаження фільтрів", e);
             }
         }
+    }
+
+    function onCinemaChange() {
+        saveFilters();
+        globalData = null;
+        document.getElementById('chronologicalView').innerHTML = '';
+        document.getElementById('groupedView').innerHTML = '';
+        document.getElementById('endingView').innerHTML = '';
+        document.getElementById('unifiedViewList').innerHTML = '';
+        document.getElementById('totalTickets').innerText = '0';
+        fetchData();
     }
 
     let isUnifiedOpen = false;
@@ -460,8 +464,7 @@
     }
 
     function calculateTimes(session) {
-        // ЗАХИСТ: безпечний парсинг часу
-        const safeDisplayTime = session.displayTime || session.time || "00:00";
+        const safeDisplayTime = session.displayTime || "00:00";
         const [sh, sm] = safeDisplayTime.split(':').map(Number);
         const startMinutes = (sh || 0) * 60 + (sm || 0);
         const endMinutes = startMinutes + (session.duration || 120);
@@ -503,6 +506,8 @@
         const date = document.getElementById('datePicker').value;
         if (!date) return;
 
+        const cinemaKey = document.getElementById('cinemaSelect').value;
+
         const btn = document.getElementById('fetchBtn');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
@@ -514,8 +519,8 @@
         }
         
         try {
-            // КЕШ ІЗОЛЬОВАНО ДЛЯ КОЖНОГО КІНОТЕАТРУ ОКРЕМО
-            const cacheKey = `relux_schedule_${currentCinemaId}_${date}`;
+            // Кеш ізольований під ключ кінотеатру (relux, forum, kk)
+            const cacheKey = `relux_schedule_${cinemaKey}_${date}`;
             let cachedSessions = [];
             try {
                 const stored = localStorage.getItem(cacheKey);
@@ -527,8 +532,7 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // ВІДПРАВЛЯЄМО currentCinemaId НА СЕРВЕР
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: currentCinemaId })
+                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinema: cinemaKey })
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
@@ -538,30 +542,32 @@
 
             if (typeof EXTRA_SESSIONS !== 'undefined' && Array.isArray(EXTRA_SESSIONS)) {
                 const currentDate = date;
-                const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
-                
-                todayExtras.forEach(extra => {
-                    const newSession = {
-                        id: 'extra_' + Math.random().toString(36).substr(2, 9),
-                        time: extra.time,
-                        movieName: extra.movieName,
-                        hall: extra.hall,
-                        sold: extra.sold || 0,
-                        booked: extra.booked || 0,
-                        isFresh: true,
-                        isExtra: true,
-                        extraDuration: extra.duration || 120
-                    };
+                // Завантажуємо ручні сеанси тільки для RE'LUX, щоб не плутати їх на Форумі (або можеш змінити логіку)
+                if (cinemaKey === 'relux') {
+                    const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
+                    
+                    todayExtras.forEach(extra => {
+                        const newSession = {
+                            id: 'extra_' + Math.random().toString(36).substr(2, 9),
+                            time: extra.time,
+                            movieName: extra.movieName,
+                            hall: extra.hall,
+                            sold: extra.sold || 0,
+                            booked: extra.booked || 0,
+                            isFresh: true,
+                            isExtra: true,
+                            extraDuration: extra.duration || 120
+                        };
 
-                    data.chronological.push(newSession);
+                        data.chronological.push(newSession);
 
-                    if (!data.grouped[extra.hall]) {
-                        data.grouped[extra.hall] = [];
-                    }
-                    data.grouped[extra.hall].push(newSession);
-                });
+                        if (!data.grouped[extra.hall]) {
+                            data.grouped[extra.hall] = [];
+                        }
+                        data.grouped[extra.hall].push(newSession);
+                    });
+                }
 
-                // ЗАХИСТ: Безпечне сортування
                 const sortByTime = (a, b) => {
                     const tA = (a.time || "00:00").split(':').map(Number);
                     const tB = (b.time || "00:00").split(':').map(Number);
