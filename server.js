@@ -19,37 +19,32 @@ const headers = {
 };
 
 const scheduleQuery = `
-query movieCatalogQuery(\$cinemaId: String!, $offlineStartAtOrAfter: String,$offlineStartAtOrBefore: String) {
-  fullMovies: moviesV2(cinemaId: \$cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore:$offlineStartAtOrBefore, first: 100) {
-    nodes { name, offlineRental(cinemaId: \$cinemaId) { sessions { id, startSessionAt } } }
+query movieCatalogQuery($cinemaId: String!, $offlineStartAtOrAfter: String, $offlineStartAtOrBefore: String) {
+  fullMovies: moviesV2(cinemaId: $cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore: $offlineStartAtOrBefore, first: 100) {
+    nodes { name, offlineRental(cinemaId: $cinemaId) { sessions { id, startSessionAt } } }
   }
 }`;
 
 const seatsQuery = `
-query sessionById(\$id: ID!) {
-  sessionById(id: \$id) { cinemaHall { name, rows { seats { state } } } }
+query sessionById($id: ID!) {
+  sessionById(id: $id) { cinemaHall { name, rows { seats { state } } } }
 }`;
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Пам'ять сервера тепер ізольована для кожного кінотеатру
+// Пам'ять тепер ізольована по ID кінотеатру!
 const serverSessionCache = {};
 
 async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
-    const startTime = `\${targetDate}T00:00:00.000Z`;
-    const endTime = `\${targetDate}T23:59:59.000Z`;
+    const startTime = `${targetDate}T00:00:00.000Z`;
+    const endTime = `${targetDate}T23:59:59.000Z`;
 
     const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
         cinemaId: cinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    // Створюємо ізольований кеш для конкретного кінотеатру
-    if (!serverSessionCache[cinemaId]) {
-        serverSessionCache[cinemaId] = {};
-    }
-    if (!serverSessionCache[cinemaId][targetDate]) {
-        serverSessionCache[cinemaId][targetDate] = new Map();
-    }
+    if (!serverSessionCache[cinemaId]) serverSessionCache[cinemaId] = {};
+    if (!serverSessionCache[cinemaId][targetDate]) serverSessionCache[cinemaId][targetDate] = new Map();
     
     const sessionMap = serverSessionCache[cinemaId][targetDate];
 
@@ -114,7 +109,7 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
                 const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
                 return { session, seatsResult };
             } catch (error) {
-                console.error(`Помилка для сеансу \${session.id}:`, error.message);
+                console.error(`Помилка для сеансу ${session.id}:`, error.message);
                 return { session, seatsResult: null }; 
             }
         });
@@ -168,8 +163,8 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
-// === НОВІ МАРШРУТИ ДЛЯ РІЗНИХ КІНОТЕАТРІВ ===
-// Сервер віддаватиме index.html на будь-який з цих запитів
+// === НОВІ МАРШРУТИ ===
+// Сервер віддаватиме index.html для всіх трьох посилань
 app.get(['/', '/forum', '/kk'], (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -179,13 +174,13 @@ app.post('/api/tickets', async (req, res) => {
         const { date, cachedSessions, cinemaId } = req.body;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
-        // Якщо клієнт не передав cinemaId, за замовчуванням беремо RE'LUX
+        // Якщо cinemaId не прийшов, ставимо RE'LUX за замовчуванням
         const currentCinemaId = cinemaId || "Z2lkOi8vY2luZW1hLzEz";
         
         const data = await getTicketsReport(date, cachedSessions, currentCinemaId);
         res.json(data);
     } catch (error) {
-        console.error(error);
+        console.error("Помилка сервера:", error);
         res.status(500).json({ error: "Помилка при зборі даних" });
     }
 });
@@ -199,10 +194,10 @@ app.get('/api/tickets', async (req, res) => {
         const data = await getTicketsReport(date, [], cinemaId);
         res.json(data);
     } catch (error) {
-        console.error(error);
+        console.error("Помилка сервера:", error);
         res.status(500).json({ error: "Помилка при зборі даних" });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Сервер працює: http://localhost:\${PORT}`));
+app.listen(PORT, () => console.log(`Сервер працює: http://localhost:${PORT}`));
