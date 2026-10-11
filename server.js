@@ -1,889 +1,208 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси</title>
-    
-    <link rel="icon" type="image/png" href="favicon.png">
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
 
-    <style>
-        :root {
-            --bg: #f8f9fa;
-            --surface: #ffffff;
-            --text: #212529;
-            --text-muted: #6c757d;
-            --primary: #0d6efd;
-            --primary-hover: #0b5ed7;
-            --warning: #fd7e14;
-            --danger: #dc3545; 
-            --border: #dee2e6;
-            --radius: 12px;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.5;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .card {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 24px;
-        }
-        h1 { margin-top: 0; font-size: 1.5rem; }
-        h2 { font-size: 1.25rem; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
-        
-        .controls {
-            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-        }
-        input[type="date"] {
-            padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
-            outline: none; transition: border-color 0.2s;
-        }
-        input[type="date"]:focus {
-            border-color: var(--primary);
-        }
-        button {
-            padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s;
-        }
-        button:hover { background: var(--primary-hover); }
-        button:disabled { background: var(--text-muted); cursor: not-allowed; }
-        
-        .filters {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .time-toggle {
-            display: inline-flex;
-            background: #e9ecef;
-            border-radius: 8px;
-            padding: 4px;
-            width: fit-content;
-        }
-        .time-toggle input { display: none; }
-        .time-toggle label {
-            padding: 8px 16px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            border-radius: 6px;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-        .time-toggle input:checked + label {
-            background: var(--surface);
-            color: var(--text);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-        .filters-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .checkbox-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .cb-label {
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .cb-label input { display: none; }
-        .cb-button {
-            display: inline-block;
-            padding: 8px 16px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            transition: all 0.2s ease-in-out;
-            user-select: none;
-        }
-        .cb-label:hover input:not(:checked) + .cb-button {
-            border-color: #adb5bd;
-            color: var(--text);
-            background: var(--bg);
-        }
-        .cb-label input:checked + .cb-button {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
-        }
+const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
+const API_SESSION_URL = "https://api-mobile.planetakino.ua/graphql/sessionById";
 
-        #toggleUnifiedBtn {
-            width: 100%;
-            margin-top: 24px;
-            padding: 12px;
-            text-align: center;
-            display: block;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            background: rgba(13, 110, 253, 0.05);
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        #toggleUnifiedBtn:hover {
-            background: var(--primary);
-            color: white;
-        }
+const headers = {
+    "accept": "application/json",
+    "content-type": "application/json",
+    "pk-app-type": "web",
+    "pk-app-version": "1.29.0",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/150.0.0.0 Safari/537.36"
+};
 
-        .total-box {
-            font-size: 1.5rem; 
-            font-weight: bold; 
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-        }
-        .section-header h2 {
-            margin-top: 0; 
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-            line-height: 1; 
-        }
-        
-        .toggle-empty {
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            display: flex;
-            align-items: center;
-        }
-        .toggle-empty input { display: none; }
-        .toggle-empty-btn {
-            display: inline-block;
-            padding: 6px 14px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            transition: all 0.2s ease-in-out;
-            user-select: none;
-            line-height: 1.5;
-        }
-        .toggle-empty:hover input:not(:checked) + .toggle-empty-btn {
-            border-color: #adb5bd;
-            color: var(--text);
-            background: var(--bg);
-        }
-        .toggle-empty input:checked + .toggle-empty-btn {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
-        }
+const scheduleQuery = `
+query movieCatalogQuery(\$cinemaId: String!, $offlineStartAtOrAfter: String,$offlineStartAtOrBefore: String) {
+  fullMovies: moviesV2(cinemaId: \$cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore:$offlineStartAtOrBefore, first: 100) {
+    nodes { name, offlineRental(cinemaId: \$cinemaId) { sessions { id, startSessionAt } } }
+  }
+}`;
 
-        .session-item {
-            display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);
-        }
-        .session-item:last-child { border-bottom: none; }
-        
-        .session-item.highlighted {
-            background-color: rgba(13, 110, 253, 0.06); 
-            padding: 12px 16px;
-            margin: 4px -16px;
-            border-radius: 8px;
-            border-bottom: none;
-            position: relative;
-        }
-        .session-item.highlighted::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: var(--primary);
-            border-radius: 8px 0 0 8px;
-        }
+const seatsQuery = `
+query sessionById(\$id: ID!) {
+  sessionById(id: \$id) { cinemaHall { name, rows { seats { state } } } }
+}`;
 
-        @keyframes pulse-danger-bg {
-            0% { background-color: rgba(220, 53, 69, 0.03); }
-            100% { background-color: rgba(220, 53, 69, 0.15); }
-        }
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        .session-item.highlighted-danger {
-            padding: 12px 16px;
-            margin: 4px -16px;
-            border-radius: 8px;
-            border-bottom: none;
-            position: relative;
-            animation: pulse-danger-bg 1.5s infinite alternate ease-in-out;
-        }
-        .session-item.highlighted-danger::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: var(--danger);
-            border-radius: 8px 0 0 8px;
-        }
+// Пам'ять сервера тепер ізольована для кожного кінотеатру
+const serverSessionCache = {};
 
-        .session-time { font-weight: bold; width: 65px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.2; }
-        
-        .time-main { color: var(--text); transition: color 0.2s; } 
-        
-        .session-item.highlighted .time-main {
-            color: var(--primary);
-        }
-        .session-item.highlighted-danger .time-main,
-        .session-item.highlighted-danger .session-sold {
-            color: var(--danger);
-        }
+async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
+    const startTime = `\${targetDate}T00:00:00.000Z`;
+    const endTime = `\${targetDate}T23:59:59.000Z`;
 
-        .session-time-end { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
-        
-        .session-name { 
-            flex-grow: 1; 
-            padding: 0 12px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        .session-hall { 
-            background: #e9ecef;
-            color: #495057;
-            font-size: 0.75rem; 
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 6px;
-            white-space: nowrap;
-            letter-spacing: 0.5px;
-        }
-        .session-sold { font-weight: 600; color: var(--primary); white-space: nowrap; text-align: right; transition: color 0.2s; }
-        .session-booked { color: var(--warning); font-size: 0.85em; font-weight: 500; margin-left: 4px; }
-        
-        #loading { display: none; margin-top: 16px; color: var(--text-muted); }
-        #results { display: none; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="card">
-        <h1 id="mainTitle">Обрати дату</h1>
-        <div class="controls">
-            <input type="date" id="datePicker">
-            <button id="fetchBtn" onclick="fetchData()">Оновити</button>
-        </div>
-
-        <div class="filters">
-            <div>
-                <div class="filters-title">Відображення сеансів:</div>
-                <div class="time-toggle">
-                    <input type="radio" id="timeNow" name="timeMode" value="now" checked onchange="saveFilters(); renderData()">
-                    <label for="timeNow">Від поточного часу</label>
-                    
-                    <input type="radio" id="timeAll" name="timeMode" value="all" onchange="saveFilters(); renderData()">
-                    <label for="timeAll">За весь день</label>
-                </div>
-            </div>
-
-            <div>
-                <div class="filters-title">Фільтр залів:</div>
-                <div class="checkbox-group">
-                    <label class="cb-label"><input type="checkbox" id="filterAll" checked onchange="onAllChange(event)"><span class="cb-button">Усі зали</span></label>
-                    <label class="cb-label"><input type="checkbox" value="1" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 1</span></label>
-                    <label class="cb-label"><input type="checkbox" value="2" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 2</span></label>
-                    <label class="cb-label"><input type="checkbox" value="3" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 3</span></label>
-                    <label class="cb-label"><input type="checkbox" value="4" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 4</span></label>
-                    <label class="cb-label"><input type="checkbox" value="5" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 5</span></label>
-                    <label class="cb-label"><input type="checkbox" value="6" class="hall-cb" onchange="onHallChange()"><span class="cb-button">Зал 6</span></label>
-                </div>
-            </div>
-        </div>
-
-        <button id="toggleUnifiedBtn" onclick="toggleUnifiedView()">⏱ Показати захід і вихід разом</button>
-
-        <div id="loading">Завантаження... Це може зайняти до хвилини ⏳</div>
-    </div>
-
-    <div id="results">
-        
-        <div class="card" id="unifiedCard" style="display: none; border: 2px solid var(--primary);">
-            <div class="section-header">
-                <h2>Хронологія: Захід і вихід</h2>
-            </div>
-            <div id="unifiedViewList"></div>
-        </div>
-
-        <div class="card">
-            <div class="total-box">
-                <span id="totalLabel">До кінця дня продано:</span> 
-                <span id="totalTickets">0</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="section-header">
-                <h2 id="chronoHeader">Найближчі сеанси</h2>
-                <label class="toggle-empty">
-                    <input type="checkbox" id="hideEmptyChrono" onchange="saveFilters(); renderData()">
-                    <span class="toggle-empty-btn">Приховати порожні</span>
-                </label>
-            </div>
-            <div id="chronologicalView"></div>
-        </div>
-
-        <div class="card">
-            <h2>Розклад по залах</h2>
-            <div id="groupedView"></div>
-        </div>
-
-        <div class="card">
-            <div class="section-header">
-                <h2 id="endingHeader">Зараз тривають - Час виходу</h2>
-            </div>
-            <div id="endingView"></div>
-        </div>
-    </div>
-</div>
-
-<script src="movies-config.js"></script>
-
-<script>
-    // ==========================================
-    // ЛОГІКА МАРШРУТИЗАЦІЇ (URL -> Cinema ID)
-    // ==========================================
-    const urlPath = window.location.pathname.replace(/\/$/, ""); 
-    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // За замовчуванням RE'LUX
-    let cinemaName = "RE'LUX";
-
-    if (urlPath === '/forum') {
-        currentCinemaId = "Z2lkOi8vY2luZW1hLzU=";
-        cinemaName = "Forum";
-    } else if (urlPath === '/kk') {
-        currentCinemaId = "Z2lkOi8vY2luZW1hLzY=";
-        cinemaName = "King Cross";
-    }
-
-    // Встановлюємо правильний заголовок на сторінці при завантаженні
-    document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('mainTitle').innerText = `Обрати дату (\${cinemaName})`;
-        document.title = `Сеанси \${cinemaName}`;
+    const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
+        cinemaId: cinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
-    // ==========================================
 
-    function saveFilters() {
-        const filters = {
-            timeMode: document.querySelector('input[name="timeMode"]:checked').value,
-            hideEmpty: document.getElementById('hideEmptyChrono').checked,
-            halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
-            filterAll: document.getElementById('filterAll').checked
-        };
-        localStorage.setItem('relux_filters', JSON.stringify(filters));
+    // Створюємо ізольований кеш для конкретного кінотеатру
+    if (!serverSessionCache[cinemaId]) {
+        serverSessionCache[cinemaId] = {};
+    }
+    if (!serverSessionCache[cinemaId][targetDate]) {
+        serverSessionCache[cinemaId][targetDate] = new Map();
+    }
+    
+    const sessionMap = serverSessionCache[cinemaId][targetDate];
+
+    for (let session of sessionMap.values()) {
+        session.isFresh = false;
     }
 
-    function loadFilters() {
-        const saved = localStorage.getItem('relux_filters');
-        if (saved) {
-            try {
-                const filters = JSON.parse(saved);
-                
-                if (filters.timeMode === 'all') {
-                    document.getElementById('timeAll').checked = true;
-                } else {
-                    document.getElementById('timeNow').checked = true;
-                }
-                
-                document.getElementById('hideEmptyChrono').checked = !!filters.hideEmpty;
-                document.getElementById('filterAll').checked = !!filters.filterAll;
-                
-                const hallCbs = document.querySelectorAll('.hall-cb');
-                if (filters.halls && filters.halls.length === hallCbs.length) {
-                    hallCbs.forEach((cb, i) => {
-                        cb.checked = filters.halls[i];
-                    });
-                }
-            } catch(e) {
-                console.error("Помилка завантаження фільтрів", e);
+    if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
+        clientCachedSessions.forEach(cs => {
+            if (!sessionMap.has(cs.id)) {
+                sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall, isFresh: false });
             }
-        }
+        });
     }
 
-    let isUnifiedOpen = false;
-
-    function toggleUnifiedView() {
-        isUnifiedOpen = !isUnifiedOpen;
-        const btn = document.getElementById('toggleUnifiedBtn');
-        const card = document.getElementById('unifiedCard');
-        
-        if (isUnifiedOpen) {
-            btn.innerHTML = '⏱ Сховати захід і вихід';
-            btn.style.background = 'var(--primary)';
-            btn.style.color = 'white';
-            card.style.display = 'block';
-        } else {
-            btn.innerHTML = '⏱ Показати захід і вихід разом';
-            btn.style.background = 'rgba(13, 110, 253, 0.05)';
-            btn.style.color = 'var(--primary)';
-            card.style.display = 'none';
-        }
-    }
-
-    function calculateTimes(session) {
-        const [sh, sm] = session.displayTime.split(':').map(Number);
-        const startMinutes = sh * 60 + sm;
-        const endMinutes = startMinutes + session.duration;
-        
-        const displayEndMins = endMinutes % (24 * 60);
-        const eh = Math.floor(displayEndMins / 60);
-        const em = displayEndMins % 60;
-        const endTimeStr = `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
-        
-        return { startMinutes, endMinutes, endTimeStr };
-    }
-
-    document.getElementById('datePicker').valueAsDate = new Date();
-    loadFilters();
-    let globalData = null; 
-
-    fetchData();
-
-    function onAllChange(e) {
-        const hallCbs = document.querySelectorAll('.hall-cb');
-        if (e.target.checked) {
-            hallCbs.forEach(cb => cb.checked = false);
-        } else if (!Array.from(hallCbs).some(cb => cb.checked)) {
-            e.target.checked = true;
-        }
-        saveFilters();
-        if (globalData) renderData();
-    }
-
-    function onHallChange() {
-        const allCb = document.getElementById('filterAll');
-        const anyChecked = Array.from(document.querySelectorAll('.hall-cb')).some(cb => cb.checked);
-        allCb.checked = !anyChecked;
-        saveFilters();
-        if (globalData) renderData();
-    }
-
-    async function fetchData(isSilent = false) {
-        const date = document.getElementById('datePicker').value;
-        if (!date) return;
-
-        const btn = document.getElementById('fetchBtn');
-        const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-
-        if (!isSilent) {
-            btn.disabled = true;
-            loading.style.display = 'block';
-            results.style.display = 'none';
-        }
-        
-        try {
-            // Кеш тепер також ізольований на стороні клієнта за допомогою currentCinemaId
-            const cacheKey = `relux_schedule_${currentCinemaId}_${date}`;
-            let cachedSessions = [];
-            try {
-                const stored = localStorage.getItem(cacheKey);
-                if (stored) {
-                    cachedSessions = JSON.parse(stored).filter(s => !String(s.id).startsWith('extra_'));
-                }
-            } catch(e) {}
-
-            const response = await fetch(`/api/tickets`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                // ПЕРЕДАЄМО ID КІНОТЕАТРУ НА СЕРВЕР
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: currentCinemaId })
-            });
-            const data = await response.json();
-            if (data.error) throw new Error(data.error);
-
-            if (!data.chronological) data.chronological = [];
-            if (!data.grouped) data.grouped = {};
-
-            if (typeof EXTRA_SESSIONS !== 'undefined' && Array.isArray(EXTRA_SESSIONS)) {
-                const currentDate = date;
-                const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
-                
-                todayExtras.forEach(extra => {
-                    const newSession = {
-                        id: 'extra_' + Math.random().toString(36).substr(2, 9),
-                        time: extra.time,
-                        movieName: extra.movieName,
-                        hall: extra.hall,
-                        sold: extra.sold || 0,
-                        booked: extra.booked || 0,
-                        isFresh: true,
-                        isExtra: true,
-                        extraDuration: extra.duration || 120
-                    };
-
-                    data.chronological.push(newSession);
-
-                    if (!data.grouped[extra.hall]) {
-                        data.grouped[extra.hall] = [];
-                    }
-                    data.grouped[extra.hall].push(newSession);
-                });
-
-                const sortByTime = (a, b) => {
-                    const tA = a.time.split(':').map(Number);
-                    const tB = b.time.split(':').map(Number);
-                    return (tA[0] * 60 + tA[1]) - (tB[0] * 60 + tB[1]);
-                };
-                
-                data.chronological.sort(sortByTime);
-                for (let hall in data.grouped) {
-                    data.grouped[hall].sort(sortByTime);
-                }
-            }
-
-            const applyExceptions = (session) => {
-                let duration = 120;
-                let displayTime = session.time; 
-                
-                if (session.isExtra) {
-                    duration = session.extraDuration;
-                } else {
-                    duration = typeof MOVIE_DURATIONS !== 'undefined' && MOVIE_DURATIONS[session.movieName] ? MOVIE_DURATIONS[session.movieName] : 120;
+    if (scheduleResult.data?.fullMovies?.nodes) {
+        scheduleResult.data.fullMovies.nodes.forEach(movie => {
+            if (movie.offlineRental?.sessions) {
+                movie.offlineRental.sessions.forEach(session => {
+                    const time = new Date(session.startSessionAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
                     
-                    if (typeof TIME_EXCEPTIONS !== 'undefined' && TIME_EXCEPTIONS[session.movieName] && TIME_EXCEPTIONS[session.movieName][session.time]) {
-                        let exc = TIME_EXCEPTIONS[session.movieName][session.time];
-                        if (typeof exc === 'number') {
-                            duration = exc;
-                        } else if (typeof exc === 'object') {
-                            if (exc.duration) duration = exc.duration;
-                            if (exc.newTime) displayTime = exc.newTime;
-                        }
+                    if (sessionMap.has(session.id)) {
+                        const existingSession = sessionMap.get(session.id);
+                        existingSession.isFresh = true;
+                        existingSession.time = time;
+                        existingSession.movieName = movie.name;
+                    } else {
+                        sessionMap.set(session.id, { id: session.id, movieName: movie.name, time: time, isFresh: true });
                     }
-                }
-                session.duration = duration;
-                session.displayTime = displayTime;
-            };
-
-            if (data.chronological) data.chronological.forEach(applyExceptions);
-            if (data.grouped) {
-                for (let hall in data.grouped) {
-                    data.grouped[hall].forEach(applyExceptions);
-                }
-            }
-
-            if (data.chronological && data.chronological.length > 0) {
-                const slimCache = data.chronological
-                    .filter(s => !s.isExtra && !String(s.id).startsWith('extra_'))
-                    .map(s => ({
-                        id: s.id, time: s.time, movieName: s.movieName, hall: s.hall
-                    }));
-                localStorage.setItem(cacheKey, JSON.stringify(slimCache));
-            }
-
-            globalData = data; 
-            renderData(); 
-            
-            if (!isSilent) results.style.display = 'block';
-        } catch (error) {
-            if (!isSilent) alert("Помилка: " + error.message);
-        } finally {
-            if (!isSilent) {
-                btn.disabled = false;
-                loading.style.display = 'none';
-            }
-        }
-    }
-
-    setInterval(() => {
-        const date = document.getElementById('datePicker').value;
-        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
-        if (date === todayStr) {
-            fetchData(true);
-        }
-    }, 10 * 60 * 1000);
-
-    function keepHall(hallName) {
-        const isAll = document.getElementById('filterAll').checked;
-        if (isAll) return true;
-        const selectedNums = Array.from(document.querySelectorAll('.hall-cb:checked')).map(cb => cb.value);
-        if (selectedNums.length === 0) return false;
-        return selectedNums.some(num => hallName.includes(num));
-    }
-
-    function getTicketsHtml(sold, booked) {
-        let html = `\${sold} шт.`;
-        if (booked && booked > 0) {
-            html += `<span class="session-booked">(+\${booked} бр.)</span>`;
-        }
-        return html;
-    }
-
-    function renderData() {
-        if (!globalData) return;
-        const data = globalData;
-
-        const timeMode = document.querySelector('input[name="timeMode"]:checked').value;
-        const hideEmptyChrono = document.getElementById('hideEmptyChrono').checked;
-        
-        const selectedDate = document.getElementById('datePicker').value;
-        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
-        const isToday = (selectedDate === todayStr);
-
-        let actualCurrentMinutes = 0;
-        if (isToday) {
-            const realNow = new Date();
-            actualCurrentMinutes = realNow.getHours() * 60 + realNow.getMinutes();
-        }
-
-        let filteredTotalSold = 0;
-        let filteredTotalBooked = 0; 
-        let chronoHtml = ``;
-        let endingSessions = [];
-        let unifiedEvents = []; 
-        
-        data.chronological.forEach(s => {
-            if (!keepHall(s.hall)) return;
-
-            const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
-
-            let keepStart = true;
-            let keepEnd = true;
-            if (timeMode === 'now' && isToday) {
-                if (startMinutes < actualCurrentMinutes) keepStart = false;
-                if (endMinutes < actualCurrentMinutes) keepEnd = false;
-            } else if (timeMode === 'now' && !isToday) {
-                if (!s.isFresh) {
-                    keepStart = false;
-                    keepEnd = false;
-                }
-            }
-            let hasTickets = s.sold > 0 || (s.booked && s.booked > 0) || s.isExtra; 
-            if (!(hideEmptyChrono && !hasTickets)) {
-                if (keepStart) unifiedEvents.push({ ...s, type: 'start', evTimeStr: s.displayTime, evMins: startMinutes });
-                if (keepEnd) unifiedEvents.push({ ...s, type: 'end', evTimeStr: endTimeStr, evMins: endMinutes });
-            }
-
-            let keepForEnding = true;
-            if (timeMode === 'now' && isToday) {
-                if ((endMinutes + 5) < actualCurrentMinutes || startMinutes > actualCurrentMinutes) {
-                    keepForEnding = false;
-                }
-            }
-
-            if (keepForEnding) {
-                if (!(hideEmptyChrono && !hasTickets)) {
-                    endingSessions.push({
-                        ...s,
-                        endTimeStr: endTimeStr,
-                        endMinutes: endMinutes,
-                        startMinutes: startMinutes
-                    });
-                }
-            }
-
-            if (timeMode === 'now' && !s.isFresh && !s.isExtra) {
-                return; 
-            }
-
-            filteredTotalSold += s.sold;
-            if (s.booked) filteredTotalBooked += s.booked;
-            
-            if (hideEmptyChrono && !hasTickets) {
-                return; 
-            }
-            
-            let itemClass = "";
-            if (isToday) {
-                let isRunning = actualCurrentMinutes >= (startMinutes - 10) && actualCurrentMinutes <= (endMinutes + 5);
-                if (isRunning) {
-                    itemClass = "highlighted"; 
-                }
-            }
-
-            chronoHtml += `
-                <div class="session-item \${itemClass}">
-                    <div class="session-time"><span class="time-main">\${s.displayTime}</span></div>
-                    <div class="session-name">
-                        <span class="session-hall">\${s.hall}</span>
-                        <span>\${s.movieName}</span>
-                    </div>
-                    <div class="session-sold">\${getTicketsHtml(s.sold, s.booked)}</div>
-                </div>`;
-        });
-
-        unifiedEvents.sort((a, b) => a.evMins - b.evMins);
-        let unifiedHtml = ``;
-        unifiedEvents.forEach(ev => {
-            let tColor = ev.type === 'start' ? 'var(--primary)' : 'var(--danger)';
-            let tLabel = ev.type === 'start' ? 'вхід' : 'вихід';
-            unifiedHtml += `
-                <div class="session-item" style="background-color: var(--surface);">
-                    <div class="session-time" style="width: 65px;">
-                        <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
-                        <span class="session-time-end">\${tLabel}</span>
-                    </div>
-                    <div class="session-name">
-                        <span class="session-hall">\${ev.hall}</span>
-                        <span>\${ev.movieName}</span>
-                    </div>
-                    <div class="session-sold">\${getTicketsHtml(ev.sold, ev.booked)}</div>
-                </div>`;
-        });
-        if (unifiedHtml === '') unifiedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає подій для відображення.</div>`;
-        document.getElementById('unifiedViewList').innerHTML = unifiedHtml;
-
-        let groupedHtml = ``;
-        for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
-            if (keepHall(hallName)) {
-                let validSessions = sessions.filter(s => {
-                    const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
-                    s.endTimeStr = endTimeStr;
-                    s.endMinutes = endMinutes;
-                    s.startMinutes = startMinutes;
-
-                    if (timeMode === 'now' && isToday) {
-                        if (actualCurrentMinutes > (s.endMinutes + 5)) return false;
-                    } else if (timeMode === 'now' && !isToday) {
-                        if (!s.isFresh && !s.isExtra) return false;
-                    }
-                    return true;
                 });
+            }
+        });
+    }
 
-                if (validSessions.length > 0) {
-                    groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 \${hallName}</h3>`;
-                    validSessions.forEach(s => {
-                        let itemClass = "";
-                        if (isToday) {
-                            let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
-                            let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
+    const kyivNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kyiv"}));
+    const [year, month, day] = targetDate.split('-').map(Number);
 
-                            if (isDangerZone) {
-                                itemClass = "highlighted-danger"; 
-                            } else if (isRunning) {
-                                itemClass = "highlighted"; 
-                            }
-                        }
+    for (let [id, session] of sessionMap.entries()) {
+        if (!session.isFresh) {
+            const [h, m] = session.time.split(':').map(Number);
+            const sessionDate = new Date(year, month - 1, day, h, m, 0);
 
-                        let timeContentHtml = "";
-                        if (itemClass === "highlighted" || itemClass === "highlighted-danger") {
-                            timeContentHtml = `
-                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. \${s.displayTime}</span>
-                                <span class="time-main">\${s.endTimeStr}</span>
-                            `;
-                        } else {
-                            timeContentHtml = `
-                                <span class="time-main">\${s.displayTime}</span>
-                                <span class="session-time-end">до \${s.endTimeStr}</span>
-                            `;
-                        }
-
-                        groupedHtml += `
-                            <div class="session-item \${itemClass}">
-                                <div class="session-time">
-                                    \${timeContentHtml}
-                                </div>
-                                <div class="session-name"><span>\${s.movieName}</span></div>
-                                <div class="session-sold">\${getTicketsHtml(s.sold, s.booked)}</div>
-                            </div>`;
-                    });
-                }
+            if (sessionDate > kyivNow) {
+                sessionMap.delete(id);
             }
         }
+    }
 
-        let endingHtml = ``;
-        endingSessions.sort((a, b) => a.endMinutes - b.endMinutes);
+    let allSessions = Array.from(sessionMap.values());
+    allSessions.sort((a, b) => a.time.localeCompare(b.time));
+
+    let totalSold = 0;
+    const chronological = [];
+    const groupedByHall = {};
+
+    const chunkSize = 10;
+    for (let i = 0; i < allSessions.length; i += chunkSize) {
+        const chunk = allSessions.slice(i, i + chunkSize);
         
-        endingSessions.forEach(s => {
-            let itemClass = "";
-            if (isToday) {
-                let isDangerZone = actualCurrentMinutes >= (s.endMinutes - 10) && actualCurrentMinutes <= (s.endMinutes + 5);
-                let isRunning = actualCurrentMinutes >= (s.startMinutes - 10) && actualCurrentMinutes < (s.endMinutes - 10);
-
-                if (isDangerZone) {
-                    itemClass = "highlighted-danger"; 
-                } else if (isRunning) {
-                    itemClass = "highlighted"; 
-                }
+        const promises = chunk.map(async (session) => {
+            try {
+                const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
+                return { session, seatsResult };
+            } catch (error) {
+                console.error(`Помилка для сеансу \${session.id}:`, error.message);
+                return { session, seatsResult: null }; 
             }
-
-            endingHtml += `
-                <div class="session-item ${itemClass}">
-                    <div class="session-time">
-                        <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
-                        <span class="time-main">${s.endTimeStr}</span>
-                    </div>
-                    <div class="session-name">
-                        <span class="session-hall">${s.hall}</span>
-                        <span>${s.movieName}</span>
-                    </div>
-                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
-                </div>`;
         });
 
-        if (chronoHtml === '') chronoHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-        if (groupedHtml === '') groupedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
-        if (endingHtml === '') endingHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає сеансів для відображення.</div>`;
+        const results = await Promise.all(promises);
 
-        const totalLabel = document.getElementById('totalLabel');
-        const endingHeader = document.getElementById('endingHeader');
-        const chronoHeader = document.getElementById('chronoHeader'); 
+        for (const { session, seatsResult } of results) {
+            if (!seatsResult) continue;
 
-        if (timeMode === 'now') {
-            endingHeader.innerText = 'Зараз тривають - Час виходу';
-            chronoHeader.innerText = 'Найближчі сеанси';
-        } else {
-            endingHeader.innerText = 'Час закінчення';
-            chronoHeader.innerText = 'Сеанси';
+            const hallName = seatsResult.data?.sessionById?.cinemaHall?.name || session.hall || "Невідомо";
+            sessionMap.set(session.id, { ...sessionMap.get(session.id), hall: hallName });
+
+            const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
+            
+            let soldForSession = 0;
+            let bookedForSession = 0; 
+            
+            rows.forEach(row => {
+                row.seats.forEach(seat => { 
+                    if (seat.state === 'SOLD') {
+                        soldForSession++;
+                    } else if (seat.state === 'BOOKED' || seat.state === 'RESERVED') {
+                        bookedForSession++;
+                    }
+                });
+            });
+
+            const sessionData = { 
+                id: session.id, 
+                time: session.time, 
+                movieName: session.movieName, 
+                sold: soldForSession, 
+                booked: bookedForSession, 
+                hall: hallName, 
+                isFresh: session.isFresh 
+            };
+            
+            chronological.push(sessionData);
+            
+            if (!groupedByHall[hallName]) groupedByHall[hallName] = [];
+            groupedByHall[hallName].push(sessionData);
+            
+            totalSold += soldForSession;
         }
 
-        if (timeMode === 'now' && isToday) {
-            totalLabel.innerText = 'До кінця дня продано:';
-        } else {
-            totalLabel.innerText = 'Загалом продано:';
+        if (i + chunkSize < allSessions.length) {
+            await delay(300);
         }
-
-        let totalHtml = `${filteredTotalSold}`;
-        if (filteredTotalBooked > 0) {
-            totalHtml += ` <span style="color: var(--warning); font-size: 0.65em; vertical-align: middle;">(+${filteredTotalBooked} бронь)</span>`;
-        }
-        document.getElementById('totalTickets').innerHTML = totalHtml;
-        
-        document.getElementById('chronologicalView').innerHTML = chronoHtml;
-        document.getElementById('groupedView').innerHTML = groupedHtml;
-        document.getElementById('endingView').innerHTML = endingHtml;
     }
-</script>
 
-</body>
-</html>
+    return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
+}
+
+// === НОВІ МАРШРУТИ ДЛЯ РІЗНИХ КІНОТЕАТРІВ ===
+// Сервер віддаватиме index.html на будь-який з цих запитів
+app.get(['/', '/forum', '/kk'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.post('/api/tickets', async (req, res) => {
+    try {
+        const { date, cachedSessions, cinemaId } = req.body;
+        if (!date) return res.status(400).json({ error: "Вкажіть дату" });
+        
+        // Якщо клієнт не передав cinemaId, за замовчуванням беремо RE'LUX
+        const currentCinemaId = cinemaId || "Z2lkOi8vY2luZW1hLzEz";
+        
+        const data = await getTicketsReport(date, cachedSessions, currentCinemaId);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Помилка при зборі даних" });
+    }
+});
+
+app.get('/api/tickets', async (req, res) => {
+    try {
+        const date = req.query.date;
+        const cinemaId = req.query.cinemaId || "Z2lkOi8vY2luZW1hLzEz";
+        if (!date) return res.status(400).json({ error: "Вкажіть дату" });
+        
+        const data = await getTicketsReport(date, [], cinemaId);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Помилка при зборі даних" });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Сервер працює: http://localhost:\${PORT}`));
