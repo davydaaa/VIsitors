@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси Planeta Kino</title>
+    <title>Сеанси RELUX</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
 
@@ -45,11 +45,11 @@
         .controls {
             display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
         }
-        select, input[type="date"] {
+        input[type="date"] {
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
-            outline: none; transition: border-color 0.2s; background: var(--surface); color: var(--text);
+            outline: none; transition: border-color 0.2s;
         }
-        select:focus, input[type="date"]:focus {
+        input[type="date"]:focus {
             border-color: var(--primary);
         }
         button {
@@ -300,13 +300,8 @@
 
 <div class="container">
     <div class="card">
-        <h1>Обрати дату та кінотеатр</h1>
+        <h1>Обрати дату</h1>
         <div class="controls">
-            <select id="cinemaSelect" onchange="saveFilters(); fetchData()">
-                <option value="Z2lkOi8vY2luZW1hLzEz">RE`LUX (Leoland)</option>
-                <option value="Z2lkOi8vY2luZW1hLzU=">Forum Lviv</option>
-                <option value="Z2lkOi8vY2luZW1hLzY=">King Cross</option>
-            </select>
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
         </div>
@@ -391,8 +386,7 @@
             timeMode: document.querySelector('input[name="timeMode"]:checked').value,
             hideEmpty: document.getElementById('hideEmptyChrono').checked,
             halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
-            filterAll: document.getElementById('filterAll').checked,
-            cinemaId: document.getElementById('cinemaSelect').value
+            filterAll: document.getElementById('filterAll').checked
         };
         localStorage.setItem('relux_filters', JSON.stringify(filters));
     }
@@ -412,10 +406,6 @@
                 document.getElementById('hideEmptyChrono').checked = !!filters.hideEmpty;
                 document.getElementById('filterAll').checked = !!filters.filterAll;
                 
-                if (filters.cinemaId) {
-                    document.getElementById('cinemaSelect').value = filters.cinemaId;
-                }
-
                 const hallCbs = document.querySelectorAll('.hall-cb');
                 if (filters.halls && filters.halls.length === hallCbs.length) {
                     hallCbs.forEach((cb, i) => {
@@ -488,7 +478,6 @@
 
     async function fetchData(isSilent = false) {
         const date = document.getElementById('datePicker').value;
-        const cinemaId = document.getElementById('cinemaSelect').value;
         if (!date) return;
 
         const btn = document.getElementById('fetchBtn');
@@ -502,11 +491,12 @@
         }
         
         try {
-            const cacheKey = `schedule_${cinemaId}_${date}`;
+            const cacheKey = `relux_schedule_${date}`;
             let cachedSessions = [];
             try {
                 const stored = localStorage.getItem(cacheKey);
                 if (stored) {
+                    // 🔥 ОЧИЩЕННЯ КЕШУ: Відкидаємо старі ручні події (extra_...), щоб вони не дублювались
                     cachedSessions = JSON.parse(stored).filter(s => !String(s.id).startsWith('extra_'));
                 }
             } catch(e) {}
@@ -514,7 +504,7 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: cinemaId })
+                body: JSON.stringify({ date: date, cachedSessions: cachedSessions })
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
@@ -589,6 +579,7 @@
                 }
             }
 
+            // 🔥 ЗАХИСТ ВІД ДУБЛЮВАННЯ: При збереженні нового кешу ми ІГНОРУЄМО всі ручні сеанси
             if (data.chronological && data.chronological.length > 0) {
                 const slimCache = data.chronological
                     .filter(s => !s.isExtra && !String(s.id).startsWith('extra_'))
@@ -629,9 +620,9 @@
     }
 
     function getTicketsHtml(sold, booked) {
-        let html = `\${sold} шт.`;
+        let html = `${sold} шт.`;
         if (booked && booked > 0) {
-            html += `<span class="session-booked">(+\${booked} бр.)</span>`;
+            html += `<span class="session-booked">(+${booked} бр.)</span>`;
         }
         return html;
     }
@@ -719,13 +710,13 @@
             }
 
             chronoHtml += `
-                <div class="session-item \${itemClass}">
-                    <div class="session-time"><span class="time-main">\${s.displayTime}</span></div>
+                <div class="session-item ${itemClass}">
+                    <div class="session-time"><span class="time-main">${s.displayTime}</span></div>
                     <div class="session-name">
-                        <span class="session-hall">\${s.hall}</span>
-                        <span>\${s.movieName}</span>
+                        <span class="session-hall">${s.hall}</span>
+                        <span>${s.movieName}</span>
                     </div>
-                    <div class="session-sold">\${getTicketsHtml(s.sold, s.booked)}</div>
+                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
                 </div>`;
         });
 
@@ -738,13 +729,13 @@
                 <div class="session-item" style="background-color: var(--surface);">
                     <div class="session-time" style="width: 65px;">
                         <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
-                        <span class="session-time-end">\${tLabel}</span>
+                        <span class="session-time-end">${tLabel}</span>
                     </div>
                     <div class="session-name">
-                        <span class="session-hall">\${ev.hall}</span>
-                        <span>\${ev.movieName}</span>
+                        <span class="session-hall">${ev.hall}</span>
+                        <span>${ev.movieName}</span>
                     </div>
-                    <div class="session-sold">\${getTicketsHtml(ev.sold, ev.booked)}</div>
+                    <div class="session-sold">${getTicketsHtml(ev.sold, ev.booked)}</div>
                 </div>`;
         });
         if (unifiedHtml === '') unifiedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає подій для відображення.</div>`;
@@ -795,14 +786,13 @@
                             `;
                         }
 
-                        // ВАЖЛИВО: Тут мають бути зворотні лапки (`)
                         groupedHtml += `
-                            <div class="session-item \${itemClass}">
+                            <div class="session-item ${itemClass}">
                                 <div class="session-time">
-                                    \${timeContentHtml}
+                                    ${timeContentHtml}
                                 </div>
-                                <div class="session-name"><span>\${s.movieName}</span></div>
-                                <div class="session-sold">\${getTicketsHtml(s.sold, s.booked)}</div>
+                                <div class="session-name"><span>${s.movieName}</span></div>
+                                <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
                             </div>`;
                     });
                 }
