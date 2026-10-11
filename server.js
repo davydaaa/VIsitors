@@ -10,6 +10,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
 const API_SESSION_URL = "https://api-mobile.planetakino.ua/graphql/sessionById";
 
+// Словник кінотеатрів зберігається суворо на сервері
+const CINEMAS = {
+    "relux": "Z2lkOi8vY2luZW1hLzEz",
+    "forum": "Z2lkOi8vY2luZW1hLzU=",
+    "kk": "Z2lkOi8vY2luZW1hLzY="
+};
+
 const headers = {
     "accept": "application/json",
     "content-type": "application/json",
@@ -32,7 +39,7 @@ query sessionById(\$id: ID!) {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Пам'ять сервера ізольована по ID кінотеатру, щоб нічого не конфліктувало
+// Кеш сервера розділено: serverSessionCache['forum'], serverSessionCache['relux'] і т.д.
 const serverSessionCache = {};
 
 async function fetchGraphQL(url, query, variables) {
@@ -43,22 +50,25 @@ async function fetchGraphQL(url, query, variables) {
     return response.json();
 }
 
-async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
+async function getTicketsReport(targetDate, clientCachedSessions, cinemaKey) {
     const startTime = `\${targetDate}T00:00:00.000Z`;
     const endTime = `\${targetDate}T23:59:59.000Z`;
 
+    // Отримуємо правильний ID з нашого словника (за замовчуванням relux)
+    const actualCinemaId = CINEMAS[cinemaKey] || CINEMAS["relux"];
+
     const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
-        cinemaId: cinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
+        cinemaId: actualCinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    if (!serverSessionCache[cinemaId]) {
-        serverSessionCache[cinemaId] = {};
+    // Ізолюємо пам'ять
+    if (!serverSessionCache[cinemaKey]) {
+        serverSessionCache[cinemaKey] = {};
     }
-    if (!serverSessionCache[cinemaId][targetDate]) {
-        serverSessionCache[cinemaId][targetDate] = new Map();
+    if (!serverSessionCache[cinemaKey][targetDate]) {
+        serverSessionCache[cinemaKey][targetDate] = new Map();
     }
-    
-    const sessionMap = serverSessionCache[cinemaId][targetDate];
+    const sessionMap = serverSessionCache[cinemaKey][targetDate];
 
     for (let session of sessionMap.values()) {
         session.isFresh = false;
@@ -66,15 +76,8 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
 
     if (clientCachedSessions && Array.isArray(clientCachedSessions)) {
         clientCachedSessions.forEach(cs => {
-            // ЗАХИСТ: додаємо в кеш тільки якщо є валідний час
             if (cs && cs.id && cs.time && !sessionMap.has(cs.id)) {
-                sessionMap.set(cs.id, { 
-                    id: cs.id, 
-                    movieName: cs.movieName || "Невідомо", 
-                    time: cs.time, 
-                    hall: cs.hall || "Невідомо", 
-                    isFresh: false 
-                });
+                sessionMap.set(cs.id, { id: cs.id, movieName: cs.movieName, time: cs.time, hall: cs.hall, isFresh: false });
             }
         });
     }
@@ -103,12 +106,11 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
 
     for (let [id, session] of sessionMap.entries()) {
         if (!session.isFresh) {
-            // ЗАХИСТ: якщо сеанс якимось чином не має часу - безпечно видаляємо його
+            // Захист від битих сеансів без часу (щоб не було помилки 500)
             if (!session.time) {
                 sessionMap.delete(id);
                 continue;
             }
-
             const [h, m] = session.time.split(':').map(Number);
             const sessionDate = new Date(year, month - 1, day, h, m, 0);
 
@@ -119,7 +121,7 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
     }
 
     let allSessions = Array.from(sessionMap.values());
-    // ЗАХИСТ: безпечне сортування
+    // Безпечне сортування
     allSessions.sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
 
     let totalSold = 0;
@@ -189,24 +191,17 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
-// === НОВІ МАРШРУТИ ===
-// Віддаємо той самий index.html для всіх 3-х посилань
-app.get(['/', '/forum', '/kk'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 app.post('/api/tickets', async (req, res) => {
     try {
-        const { date, cachedSessions, cinemaId } = req.body;
+        const { date, cachedSessions, cinema } = req.body;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
-        // Встановлюємо RE'LUX за замовчуванням
-        const currentCinemaId = cinemaId || "Z2lkOi8vY2luZW1hLzEz";
-        
-        const data = await getTicketsReport(date, cachedSessions, currentCinemaId);
+        // Передаємо cinemaKey (наприклад, "forum") на обробку
+        const currentCinemaKey = cinema || "relux";
+        const data = await getTicketsReport(date, cachedSessions, currentCinemaKey);
         res.json(data);
     } catch (error) {
-        console.error("Помилка на сервері:", error.message);
+        console.error("Помилка:", error);
         res.status(500).json({ error: "Помилка при зборі даних" });
     }
 });
@@ -214,13 +209,13 @@ app.post('/api/tickets', async (req, res) => {
 app.get('/api/tickets', async (req, res) => {
     try {
         const date = req.query.date;
-        const cinemaId = req.query.cinemaId || "Z2lkOi8vY2luZW1hLzEz";
+        const cinema = req.query.cinema || "relux";
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
-        const data = await getTicketsReport(date, [], cinemaId);
+        const data = await getTicketsReport(date, [], cinema);
         res.json(data);
     } catch (error) {
-        console.error("Помилка на сервері:", error.message);
+        console.error("Помилка:", error);
         res.status(500).json({ error: "Помилка при зборі даних" });
     }
 });
