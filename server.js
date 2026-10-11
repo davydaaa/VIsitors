@@ -9,7 +9,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
 const API_SESSION_URL = "https://api-mobile.planetakino.ua/graphql/sessionById";
-const CINEMA_ID = "Z2lkOi8vY2luZW1hLzEz"; 
 
 const headers = {
     "accept": "application/json",
@@ -20,41 +19,39 @@ const headers = {
 };
 
 const scheduleQuery = `
-query movieCatalogQuery($cinemaId: String!, $offlineStartAtOrAfter: String, $offlineStartAtOrBefore: String) {
-  fullMovies: moviesV2(cinemaId: $cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore: $offlineStartAtOrBefore, first: 100) {
-    nodes { name, offlineRental(cinemaId: $cinemaId) { sessions { id, startSessionAt } } }
+query movieCatalogQuery(\$cinemaId: String!, $offlineStartAtOrAfter: String,$offlineStartAtOrBefore: String) {
+  fullMovies: moviesV2(cinemaId: \$cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore:$offlineStartAtOrBefore, first: 100) {
+    nodes { name, offlineRental(cinemaId: \$cinemaId) { sessions { id, startSessionAt } } }
   }
 }`;
 
 const seatsQuery = `
-query sessionById($id: ID!) {
-  sessionById(id: $id) { cinemaHall { name, rows { seats { state } } } }
+query sessionById(\$id: ID!) {
+  sessionById(id: \$id) { cinemaHall { name, rows { seats { state } } } }
 }`;
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchGraphQL(url, query, variables) {
-    const response = await fetch(url, {
-        method: "POST", headers, body: JSON.stringify({ query, variables })
-    });
-    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-    return response.json();
-}
-
+// Пам'ять сервера тепер ізольована для кожного кінотеатру
 const serverSessionCache = {};
 
-async function getTicketsReport(targetDate, clientCachedSessions) {
-    const startTime = `${targetDate}T00:00:00.000Z`;
-    const endTime = `${targetDate}T23:59:59.000Z`;
+async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
+    const startTime = `\${targetDate}T00:00:00.000Z`;
+    const endTime = `\${targetDate}T23:59:59.000Z`;
 
     const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
-        cinemaId: CINEMA_ID, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
+        cinemaId: cinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    if (!serverSessionCache[targetDate]) {
-        serverSessionCache[targetDate] = new Map();
+    // Створюємо ізольований кеш для конкретного кінотеатру
+    if (!serverSessionCache[cinemaId]) {
+        serverSessionCache[cinemaId] = {};
     }
-    const sessionMap = serverSessionCache[targetDate];
+    if (!serverSessionCache[cinemaId][targetDate]) {
+        serverSessionCache[cinemaId][targetDate] = new Map();
+    }
+    
+    const sessionMap = serverSessionCache[cinemaId][targetDate];
 
     for (let session of sessionMap.values()) {
         session.isFresh = false;
@@ -117,7 +114,7 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
                 const seatsResult = await fetchGraphQL(API_SESSION_URL, seatsQuery, { id: session.id });
                 return { session, seatsResult };
             } catch (error) {
-                console.error(`Помилка для сеансу ${session.id}:`, error.message);
+                console.error(`Помилка для сеансу \${session.id}:`, error.message);
                 return { session, seatsResult: null }; 
             }
         });
@@ -133,7 +130,7 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
             const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
             
             let soldForSession = 0;
-            let bookedForSession = 0; // Змінна для підрахунку броні
+            let bookedForSession = 0; 
             
             rows.forEach(row => {
                 row.seats.forEach(seat => { 
@@ -145,7 +142,6 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
                 });
             });
 
-            // Відправляємо booked окремим параметром
             const sessionData = { 
                 id: session.id, 
                 time: session.time, 
@@ -172,12 +168,21 @@ async function getTicketsReport(targetDate, clientCachedSessions) {
     return { date: targetDate, total: totalSold, chronological, grouped: groupedByHall };
 }
 
+// === НОВІ МАРШРУТИ ДЛЯ РІЗНИХ КІНОТЕАТРІВ ===
+// Сервер віддаватиме index.html на будь-який з цих запитів
+app.get(['/', '/forum', '/kk'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.post('/api/tickets', async (req, res) => {
     try {
-        const { date, cachedSessions } = req.body;
+        const { date, cachedSessions, cinemaId } = req.body;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
-        const data = await getTicketsReport(date, cachedSessions);
+        // Якщо клієнт не передав cinemaId, за замовчуванням беремо RE'LUX
+        const currentCinemaId = cinemaId || "Z2lkOi8vY2luZW1hLzEz";
+        
+        const data = await getTicketsReport(date, cachedSessions, currentCinemaId);
         res.json(data);
     } catch (error) {
         console.error(error);
@@ -188,9 +193,10 @@ app.post('/api/tickets', async (req, res) => {
 app.get('/api/tickets', async (req, res) => {
     try {
         const date = req.query.date;
+        const cinemaId = req.query.cinemaId || "Z2lkOi8vY2luZW1hLzEz";
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
         
-        const data = await getTicketsReport(date, []);
+        const data = await getTicketsReport(date, [], cinemaId);
         res.json(data);
     } catch (error) {
         console.error(error);
@@ -199,4 +205,4 @@ app.get('/api/tickets', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Сервер працює: http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Сервер працює: http://localhost:\${PORT}`));
