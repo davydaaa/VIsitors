@@ -9,7 +9,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
 const API_SESSION_URL = "https://api-mobile.planetakino.ua/graphql/sessionById";
-const CINEMA_ID = "Z2lkOi8vY2luZW1hLzU="; 
+const CINEMA_ID = "Z2lkOi8vY2luZW1hLzY="; 
 
 const headers = {
     "accept": "application/json",
