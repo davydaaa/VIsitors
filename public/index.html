@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси RELUX</title>
+    <title>Сеанси Planeta Kino</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
 
@@ -45,11 +45,11 @@
         .controls {
             display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
         }
-        input[type="date"], select {
+        select, input[type="date"] {
             padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;
             outline: none; transition: border-color 0.2s; background: var(--surface); color: var(--text);
         }
-        input[type="date"]:focus, select:focus {
+        select:focus, input[type="date"]:focus {
             border-color: var(--primary);
         }
         button {
@@ -300,13 +300,12 @@
 
 <div class="container">
     <div class="card">
-        <h1>Обрати дату</h1>
+        <h1>Обрати дату та кінотеатр</h1>
         <div class="controls">
-            <!-- ВИПАДАЮЧИЙ СПИСОК КІНОТЕАТРІВ -->
-            <select id="cinemaSelect" onchange="onCinemaChange()" style="font-weight: 600;">
-                <option value="relux">Львів (RE'LUX)</option>
-                <option value="forum">Львів (Forum)</option>
-                <option value="kk">Львів (King Cross)</option>
+            <select id="cinemaSelect" onchange="saveFilters(); fetchData()">
+                <option value="Z2lkOi8vY2luZW1hLzEz">RE`LUX (Leoland)</option>
+                <option value="Z2lkOi8vY2luZW1hLzU=">Forum Lviv</option>
+                <option value="Z2lkOi8vY2luZW1hLzY=">King Cross</option>
             </select>
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
@@ -389,11 +388,11 @@
 <script>
     function saveFilters() {
         const filters = {
-            cinema: document.getElementById('cinemaSelect').value,
             timeMode: document.querySelector('input[name="timeMode"]:checked').value,
             hideEmpty: document.getElementById('hideEmptyChrono').checked,
             halls: Array.from(document.querySelectorAll('.hall-cb')).map(cb => cb.checked),
-            filterAll: document.getElementById('filterAll').checked
+            filterAll: document.getElementById('filterAll').checked,
+            cinemaId: document.getElementById('cinemaSelect').value
         };
         localStorage.setItem('relux_filters', JSON.stringify(filters));
     }
@@ -404,13 +403,6 @@
             try {
                 const filters = JSON.parse(saved);
                 
-                if (filters.cinema) {
-                    const sel = document.getElementById('cinemaSelect');
-                    if (Array.from(sel.options).some(o => o.value === filters.cinema)) {
-                        sel.value = filters.cinema;
-                    }
-                }
-
                 if (filters.timeMode === 'all') {
                     document.getElementById('timeAll').checked = true;
                 } else {
@@ -420,6 +412,10 @@
                 document.getElementById('hideEmptyChrono').checked = !!filters.hideEmpty;
                 document.getElementById('filterAll').checked = !!filters.filterAll;
                 
+                if (filters.cinemaId) {
+                    document.getElementById('cinemaSelect').value = filters.cinemaId;
+                }
+
                 const hallCbs = document.querySelectorAll('.hall-cb');
                 if (filters.halls && filters.halls.length === hallCbs.length) {
                     hallCbs.forEach((cb, i) => {
@@ -430,17 +426,6 @@
                 console.error("Помилка завантаження фільтрів", e);
             }
         }
-    }
-
-    function onCinemaChange() {
-        saveFilters();
-        globalData = null;
-        document.getElementById('chronologicalView').innerHTML = '';
-        document.getElementById('groupedView').innerHTML = '';
-        document.getElementById('endingView').innerHTML = '';
-        document.getElementById('unifiedViewList').innerHTML = '';
-        document.getElementById('totalTickets').innerText = '0';
-        fetchData();
     }
 
     let isUnifiedOpen = false;
@@ -464,10 +449,9 @@
     }
 
     function calculateTimes(session) {
-        const safeDisplayTime = session.displayTime || "00:00";
-        const [sh, sm] = safeDisplayTime.split(':').map(Number);
-        const startMinutes = (sh || 0) * 60 + (sm || 0);
-        const endMinutes = startMinutes + (session.duration || 120);
+        const [sh, sm] = session.displayTime.split(':').map(Number);
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = startMinutes + session.duration;
         
         const displayEndMins = endMinutes % (24 * 60);
         const eh = Math.floor(displayEndMins / 60);
@@ -504,9 +488,8 @@
 
     async function fetchData(isSilent = false) {
         const date = document.getElementById('datePicker').value;
+        const cinemaId = document.getElementById('cinemaSelect').value;
         if (!date) return;
-
-        const cinemaKey = document.getElementById('cinemaSelect').value;
 
         const btn = document.getElementById('fetchBtn');
         const loading = document.getElementById('loading');
@@ -519,8 +502,7 @@
         }
         
         try {
-            // Кеш ізольований під ключ кінотеатру (relux, forum, kk)
-            const cacheKey = `relux_schedule_${cinemaKey}_${date}`;
+            const cacheKey = `schedule_${cinemaId}_${date}`;
             let cachedSessions = [];
             try {
                 const stored = localStorage.getItem(cacheKey);
@@ -532,7 +514,7 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinema: cinemaKey })
+                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: cinemaId })
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
@@ -542,36 +524,33 @@
 
             if (typeof EXTRA_SESSIONS !== 'undefined' && Array.isArray(EXTRA_SESSIONS)) {
                 const currentDate = date;
-                // Завантажуємо ручні сеанси тільки для RE'LUX, щоб не плутати їх на Форумі (або можеш змінити логіку)
-                if (cinemaKey === 'relux') {
-                    const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
-                    
-                    todayExtras.forEach(extra => {
-                        const newSession = {
-                            id: 'extra_' + Math.random().toString(36).substr(2, 9),
-                            time: extra.time,
-                            movieName: extra.movieName,
-                            hall: extra.hall,
-                            sold: extra.sold || 0,
-                            booked: extra.booked || 0,
-                            isFresh: true,
-                            isExtra: true,
-                            extraDuration: extra.duration || 120
-                        };
+                const todayExtras = EXTRA_SESSIONS.filter(s => s.date === currentDate);
+                
+                todayExtras.forEach(extra => {
+                    const newSession = {
+                        id: 'extra_' + Math.random().toString(36).substr(2, 9),
+                        time: extra.time,
+                        movieName: extra.movieName,
+                        hall: extra.hall,
+                        sold: extra.sold || 0,
+                        booked: extra.booked || 0,
+                        isFresh: true,
+                        isExtra: true,
+                        extraDuration: extra.duration || 120
+                    };
 
-                        data.chronological.push(newSession);
+                    data.chronological.push(newSession);
 
-                        if (!data.grouped[extra.hall]) {
-                            data.grouped[extra.hall] = [];
-                        }
-                        data.grouped[extra.hall].push(newSession);
-                    });
-                }
+                    if (!data.grouped[extra.hall]) {
+                        data.grouped[extra.hall] = [];
+                    }
+                    data.grouped[extra.hall].push(newSession);
+                });
 
                 const sortByTime = (a, b) => {
-                    const tA = (a.time || "00:00").split(':').map(Number);
-                    const tB = (b.time || "00:00").split(':').map(Number);
-                    return ((tA[0] || 0) * 60 + (tA[1] || 0)) - ((tB[0] || 0) * 60 + (tB[1] || 0));
+                    const tA = a.time.split(':').map(Number);
+                    const tB = b.time.split(':').map(Number);
+                    return (tA[0] * 60 + tA[1]) - (tB[0] * 60 + tB[1]);
                 };
                 
                 data.chronological.sort(sortByTime);
@@ -582,7 +561,7 @@
 
             const applyExceptions = (session) => {
                 let duration = 120;
-                let displayTime = session.time || "00:00"; 
+                let displayTime = session.time; 
                 
                 if (session.isExtra) {
                     duration = session.extraDuration;
