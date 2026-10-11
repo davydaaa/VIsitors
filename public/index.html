@@ -742,7 +742,14 @@
         document.getElementById('unifiedViewList').innerHTML = unifiedHtml;
 
         let groupedHtml = ``;
-        for (const [hallName, sessions] of Object.entries(data.grouped).sort()) {
+
+        const sortedHalls = Object.entries(data.grouped).sort((a, b) => {
+            const numA = parseInt((a[0].match(/\d+/) || ["99"])[0], 10);
+            const numB = parseInt((b[0].match(/\d+/) || ["99"])[0], 10);
+            return numA - numB;
+        });
+        
+        for (const [hallName, sessions] of sortedHalls) {
             if (keepHall(hallName)) {
                 let validSessions = sessions.filter(s => {
                     const { startMinutes, endMinutes, endTimeStr } = calculateTimes(s);
