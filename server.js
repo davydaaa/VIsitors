@@ -9,6 +9,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const API_CATALOG_URL = "https://api-mobile.planetakino.ua/graphql/movieCatalogQuery";
 const API_SESSION_URL = "https://api-mobile.planetakino.ua/graphql/sessionById";
+const CINEMA_ID = "Z2lkOi8vY2luZW1hLzEz"; 
 
 const headers = {
     "accept": "application/json",
@@ -19,8 +20,8 @@ const headers = {
 };
 
 const scheduleQuery = `
-query movieCatalogQuery($cinemaId: String!, $offlineStartAtOrAfter: String,$offlineStartAtOrBefore: String) {
-  fullMovies: moviesV2(cinemaId: $cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore:$offlineStartAtOrBefore, first: 100) {
+query movieCatalogQuery($cinemaId: String!, $offlineStartAtOrAfter: String, $offlineStartAtOrBefore: String) {
+  fullMovies: moviesV2(cinemaId: $cinemaId, offlineStartAtOrAfter: $offlineStartAtOrAfter, offlineStartAtOrBefore: $offlineStartAtOrBefore, first: 100) {
     nodes { name, offlineRental(cinemaId: $cinemaId) { sessions { id, startSessionAt } } }
   }
 }`;
@@ -32,25 +33,28 @@ query sessionById($id: ID!) {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Пам'ять сервера тепер поділена по кінотеатрах: serverSessionCache[cinemaId][date]
+async function fetchGraphQL(url, query, variables) {
+    const response = await fetch(url, {
+        method: "POST", headers, body: JSON.stringify({ query, variables })
+    });
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    return response.json();
+}
+
 const serverSessionCache = {};
 
-async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
+async function getTicketsReport(targetDate, clientCachedSessions) {
     const startTime = `${targetDate}T00:00:00.000Z`;
     const endTime = `${targetDate}T23:59:59.000Z`;
 
     const scheduleResult = await fetchGraphQL(API_CATALOG_URL, scheduleQuery, {
-        cinemaId: cinemaId, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
+        cinemaId: CINEMA_ID, offlineStartAtOrAfter: startTime, offlineStartAtOrBefore: endTime
     });
 
-    if (!serverSessionCache[cinemaId]) {
-        serverSessionCache[cinemaId] = {};
+    if (!serverSessionCache[targetDate]) {
+        serverSessionCache[targetDate] = new Map();
     }
-    if (!serverSessionCache[cinemaId][targetDate]) {
-        serverSessionCache[cinemaId][targetDate] = new Map();
-    }
-    
-    const sessionMap = serverSessionCache[cinemaId][targetDate];
+    const sessionMap = serverSessionCache[targetDate];
 
     for (let session of sessionMap.values()) {
         session.isFresh = false;
@@ -129,7 +133,7 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
             const rows = seatsResult.data?.sessionById?.cinemaHall?.rows || [];
             
             let soldForSession = 0;
-            let bookedForSession = 0; 
+            let bookedForSession = 0; // Змінна для підрахунку броні
             
             rows.forEach(row => {
                 row.seats.forEach(seat => { 
@@ -141,6 +145,7 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
                 });
             });
 
+            // Відправляємо booked окремим параметром
             const sessionData = { 
                 id: session.id, 
                 time: session.time, 
@@ -169,11 +174,10 @@ async function getTicketsReport(targetDate, clientCachedSessions, cinemaId) {
 
 app.post('/api/tickets', async (req, res) => {
     try {
-        const { date, cachedSessions, cinemaId } = req.body;
+        const { date, cachedSessions } = req.body;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
-        if (!cinemaId) return res.status(400).json({ error: "Вкажіть кінотеатр" });
         
-        const data = await getTicketsReport(date, cachedSessions, cinemaId);
+        const data = await getTicketsReport(date, cachedSessions);
         res.json(data);
     } catch (error) {
         console.error(error);
@@ -184,11 +188,9 @@ app.post('/api/tickets', async (req, res) => {
 app.get('/api/tickets', async (req, res) => {
     try {
         const date = req.query.date;
-        const cinemaId = req.query.cinemaId;
         if (!date) return res.status(400).json({ error: "Вкажіть дату" });
-        if (!cinemaId) return res.status(400).json({ error: "Вкажіть кінотеатр" });
         
-        const data = await getTicketsReport(date, [], cinemaId);
+        const data = await getTicketsReport(date, []);
         res.json(data);
     } catch (error) {
         console.error(error);
@@ -198,4 +200,3 @@ app.get('/api/tickets', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Сервер працює: http://localhost:${PORT}`));
-                                       
