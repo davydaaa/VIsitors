@@ -300,6 +300,7 @@
 
 <div class="container">
     <div class="card">
+        <!-- Заголовок змінюватиметься автоматично -->
         <h1 id="mainTitle">Обрати дату</h1>
         <div class="controls">
             <input type="date" id="datePicker">
@@ -382,10 +383,10 @@
 
 <script>
     // ==========================================
-    // ЛОГІКА МАРШРУТИЗАЦІЇ (URL -> Cinema ID)
+    // ЛОГІКА ЧИТАННЯ АДРЕСНОГО РЯДКА
     // ==========================================
     const urlPath = window.location.pathname.replace(/\/$/, ""); 
-    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // RE'LUX
+    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // RE'LUX за замовчуванням
     let cinemaName = "RE'LUX";
 
     if (urlPath === '/forum') {
@@ -396,8 +397,10 @@
         cinemaName = "King Cross";
     }
 
+    // Встановлюємо правильні заголовки
     document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('mainTitle').innerText = `Обрати дату (\${cinemaName})`;
+        const titleEl = document.getElementById('mainTitle');
+        if (titleEl) titleEl.innerText = `Обрати дату (\${cinemaName})`;
         document.title = `Сеанси \${cinemaName}`;
     });
     // ==========================================
@@ -460,9 +463,11 @@
     }
 
     function calculateTimes(session) {
-        const [sh, sm] = session.displayTime.split(':').map(Number);
-        const startMinutes = sh * 60 + sm;
-        const endMinutes = startMinutes + session.duration;
+        // Безпечний парсинг часу
+        const safeDisplayTime = session.displayTime || "00:00";
+        const [sh, sm] = safeDisplayTime.split(':').map(Number);
+        const startMinutes = (sh || 0) * 60 + (sm || 0);
+        const endMinutes = startMinutes + (session.duration || 120);
         
         const displayEndMins = endMinutes % (24 * 60);
         const eh = Math.floor(displayEndMins / 60);
@@ -512,7 +517,7 @@
         }
         
         try {
-            // Кеш ізольований для кожного кінотеатру!
+            // Кеш тепер ізольовано для кожного кінотеатру!
             const cacheKey = `relux_schedule_${currentCinemaId}_${date}`;
             let cachedSessions = [];
             try {
@@ -525,6 +530,7 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                // Передаємо потрібний ID кінотеатру на сервер
                 body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: currentCinemaId })
             });
             const data = await response.json();
@@ -561,7 +567,7 @@
                 const sortByTime = (a, b) => {
                     const tA = (a.time || "00:00").split(':').map(Number);
                     const tB = (b.time || "00:00").split(':').map(Number);
-                    return (tA[0] * 60 + tA[1]) - (tB[0] * 60 + tB[1]);
+                    return ((tA[0] || 0) * 60 + (tA[1] || 0)) - ((tB[0] || 0) * 60 + (tB[1] || 0));
                 };
                 
                 data.chronological.sort(sortByTime);
