@@ -768,7 +768,7 @@
                 });
 
                 if (validSessions.length > 0) {
-                    groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 \${hallName}</h3>`;
+                    groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
                     validSessions.forEach(s => {
                         let itemClass = "";
                         if (isToday) {
@@ -785,16 +785,17 @@
                         let timeContentHtml = "";
                         if (itemClass === "highlighted" || itemClass === "highlighted-danger") {
                             timeContentHtml = `
-                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. \${s.displayTime}</span>
-                                <span class="time-main">\${s.endTimeStr}</span>
+                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
+                                <span class="time-main">${s.endTimeStr}</span>
                             `;
                         } else {
                             timeContentHtml = `
-                                <span class="time-main">\${s.displayTime}</span>
-                                <span class="session-time-end">до \${s.endTimeStr}</span>
+                                <span class="time-main">${s.displayTime}</span>
+                                <span class="session-time-end">до ${s.endTimeStr}</span>
                             `;
                         }
 
+                        // ВАЖЛИВО: Тут мають бути зворотні лапки (`)
                         groupedHtml += `
                             <div class="session-item \${itemClass}">
                                 <div class="session-time">
