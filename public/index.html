@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сеанси RELUX</title>
+    <title>Сеанси</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
 
@@ -300,7 +300,7 @@
 
 <div class="container">
     <div class="card">
-        <h1>Обрати дату</h1>
+        <h1 id="mainTitle">Обрати дату</h1>
         <div class="controls">
             <input type="date" id="datePicker">
             <button id="fetchBtn" onclick="fetchData()">Оновити</button>
@@ -381,6 +381,28 @@
 <script src="movies-config.js"></script>
 
 <script>
+    // ==========================================
+    // ЛОГІКА МАРШРУТИЗАЦІЇ (URL -> Cinema ID)
+    // ==========================================
+    const urlPath = window.location.pathname.replace(/\/$/, ""); 
+    let currentCinemaId = "Z2lkOi8vY2luZW1hLzEz"; // За замовчуванням RE'LUX
+    let cinemaName = "RE'LUX";
+
+    if (urlPath === '/forum') {
+        currentCinemaId = "Z2lkOi8vY2luZW1hLzU=";
+        cinemaName = "Forum";
+    } else if (urlPath === '/kk') {
+        currentCinemaId = "Z2lkOi8vY2luZW1hLzY=";
+        cinemaName = "King Cross";
+    }
+
+    // Встановлюємо правильний заголовок на сторінці при завантаженні
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('mainTitle').innerText = `Обрати дату (\${cinemaName})`;
+        document.title = `Сеанси \${cinemaName}`;
+    });
+    // ==========================================
+
     function saveFilters() {
         const filters = {
             timeMode: document.querySelector('input[name="timeMode"]:checked').value,
@@ -491,12 +513,12 @@
         }
         
         try {
-            const cacheKey = `relux_schedule_${date}`;
+            // Кеш тепер також ізольований на стороні клієнта за допомогою currentCinemaId
+            const cacheKey = `relux_schedule_${currentCinemaId}_${date}`;
             let cachedSessions = [];
             try {
                 const stored = localStorage.getItem(cacheKey);
                 if (stored) {
-                    // 🔥 ОЧИЩЕННЯ КЕШУ: Відкидаємо старі ручні події (extra_...), щоб вони не дублювались
                     cachedSessions = JSON.parse(stored).filter(s => !String(s.id).startsWith('extra_'));
                 }
             } catch(e) {}
@@ -504,7 +526,8 @@
             const response = await fetch(`/api/tickets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: date, cachedSessions: cachedSessions })
+                // ПЕРЕДАЄМО ID КІНОТЕАТРУ НА СЕРВЕР
+                body: JSON.stringify({ date: date, cachedSessions: cachedSessions, cinemaId: currentCinemaId })
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
@@ -579,7 +602,6 @@
                 }
             }
 
-            // 🔥 ЗАХИСТ ВІД ДУБЛЮВАННЯ: При збереженні нового кешу ми ІГНОРУЄМО всі ручні сеанси
             if (data.chronological && data.chronological.length > 0) {
                 const slimCache = data.chronological
                     .filter(s => !s.isExtra && !String(s.id).startsWith('extra_'))
@@ -620,9 +642,9 @@
     }
 
     function getTicketsHtml(sold, booked) {
-        let html = `${sold} шт.`;
+        let html = `\${sold} шт.`;
         if (booked && booked > 0) {
-            html += `<span class="session-booked">(+${booked} бр.)</span>`;
+            html += `<span class="session-booked">(+\${booked} бр.)</span>`;
         }
         return html;
     }
@@ -710,13 +732,13 @@
             }
 
             chronoHtml += `
-                <div class="session-item ${itemClass}">
-                    <div class="session-time"><span class="time-main">${s.displayTime}</span></div>
+                <div class="session-item \${itemClass}">
+                    <div class="session-time"><span class="time-main">\${s.displayTime}</span></div>
                     <div class="session-name">
-                        <span class="session-hall">${s.hall}</span>
-                        <span>${s.movieName}</span>
+                        <span class="session-hall">\${s.hall}</span>
+                        <span>\${s.movieName}</span>
                     </div>
-                    <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
+                    <div class="session-sold">\${getTicketsHtml(s.sold, s.booked)}</div>
                 </div>`;
         });
 
@@ -729,13 +751,13 @@
                 <div class="session-item" style="background-color: var(--surface);">
                     <div class="session-time" style="width: 65px;">
                         <span style="color: ${tColor}; font-weight: bold; font-size: 1.1em;">${ev.evTimeStr}</span>
-                        <span class="session-time-end">${tLabel}</span>
+                        <span class="session-time-end">\${tLabel}</span>
                     </div>
                     <div class="session-name">
-                        <span class="session-hall">${ev.hall}</span>
-                        <span>${ev.movieName}</span>
+                        <span class="session-hall">\${ev.hall}</span>
+                        <span>\${ev.movieName}</span>
                     </div>
-                    <div class="session-sold">${getTicketsHtml(ev.sold, ev.booked)}</div>
+                    <div class="session-sold">\${getTicketsHtml(ev.sold, ev.booked)}</div>
                 </div>`;
         });
         if (unifiedHtml === '') unifiedHtml = `<div style="color: var(--text-muted); padding: 12px 0;">Немає подій для відображення.</div>`;
@@ -759,7 +781,7 @@
                 });
 
                 if (validSessions.length > 0) {
-                    groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 ${hallName}</h3>`;
+                    groupedHtml += `<h3 style="margin: 16px 0 8px 0; color: var(--text-muted);">🎬 \${hallName}</h3>`;
                     validSessions.forEach(s => {
                         let itemClass = "";
                         if (isToday) {
@@ -776,23 +798,23 @@
                         let timeContentHtml = "";
                         if (itemClass === "highlighted" || itemClass === "highlighted-danger") {
                             timeContentHtml = `
-                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. ${s.displayTime}</span>
-                                <span class="time-main">${s.endTimeStr}</span>
+                                <span class="session-time-end" style="margin-top: 0; margin-bottom: 2px;">поч. \${s.displayTime}</span>
+                                <span class="time-main">\${s.endTimeStr}</span>
                             `;
                         } else {
                             timeContentHtml = `
-                                <span class="time-main">${s.displayTime}</span>
-                                <span class="session-time-end">до ${s.endTimeStr}</span>
+                                <span class="time-main">\${s.displayTime}</span>
+                                <span class="session-time-end">до \${s.endTimeStr}</span>
                             `;
                         }
 
                         groupedHtml += `
-                            <div class="session-item ${itemClass}">
+                            <div class="session-item \${itemClass}">
                                 <div class="session-time">
-                                    ${timeContentHtml}
+                                    \${timeContentHtml}
                                 </div>
-                                <div class="session-name"><span>${s.movieName}</span></div>
-                                <div class="session-sold">${getTicketsHtml(s.sold, s.booked)}</div>
+                                <div class="session-name"><span>\${s.movieName}</span></div>
+                                <div class="session-sold">\${getTicketsHtml(s.sold, s.booked)}</div>
                             </div>`;
                     });
                 }
